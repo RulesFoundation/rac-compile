@@ -1,0 +1,23 @@
+# Simple Tax Calculator
+# A minimal example of .cos syntax
+
+source {
+  citation: "Example Tax Code"
+  accessed: 2025-01-01
+}
+
+parameters {
+  rate: example/tax/rate
+}
+
+variable tax {
+  entity Person
+  period Year
+  dtype Money
+  label "Income Tax"
+
+  formula {
+    # Simple flat tax
+    return income * 0.2
+  }
+}

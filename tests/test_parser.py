@@ -1,0 +1,215 @@
+"""
+Tests for .cos DSL parser.
+
+TDD: Tests define the DSL syntax we want to support.
+"""
+
+import pytest
+from src.cosilico_compile.parser import parse_cos, CosFile, SourceBlock, VariableBlock
+
+
+class TestParseSource:
+    """Tests for source block parsing."""
+
+    def test_parse_source_block(self):
+        """Can parse source block with lawarchive reference."""
+        cos = """
+source {
+  lawarchive: us/statute/26/32/2025-01-01
+  citation: "26 USC 32"
+  accessed: 2025-12-12
+}
+"""
+        result = parse_cos(cos)
+        assert result.source is not None
+        assert result.source.lawarchive == "us/statute/26/32/2025-01-01"
+        assert result.source.citation == "26 USC 32"
+        assert result.source.accessed == "2025-12-12"
+
+    def test_source_block_optional(self):
+        """Source block is optional."""
+        cos = """
+variable foo {
+  formula { return 0 }
+}
+"""
+        result = parse_cos(cos)
+        assert result.source is None
+
+
+class TestParseParameters:
+    """Tests for parameters block parsing."""
+
+    def test_parse_parameters_block(self):
+        """Can parse parameters with references."""
+        cos = """
+parameters {
+  credit_pct: statute/26/32/b/1/credit_pct
+  phaseout_pct: statute/26/32/b/1/phaseout_pct
+}
+"""
+        result = parse_cos(cos)
+        assert "credit_pct" in result.parameters
+        assert result.parameters["credit_pct"] == "statute/26/32/b/1/credit_pct"
+
+    def test_parse_parameters_with_comments(self):
+        """Comments are ignored in parameters block."""
+        cos = """
+parameters {
+  # This is a comment
+  rate: some/path  # inline comment
+}
+"""
+        result = parse_cos(cos)
+        assert "rate" in result.parameters
+        assert result.parameters["rate"] == "some/path"
+
+
+class TestParseVariable:
+    """Tests for variable block parsing."""
+
+    def test_parse_variable_metadata(self):
+        """Can parse variable metadata."""
+        cos = """
+variable eitc {
+  entity TaxUnit
+  period Year
+  dtype Money
+  label "Earned Income Tax Credit"
+
+  formula {
+    return 0
+  }
+}
+"""
+        result = parse_cos(cos)
+        assert len(result.variables) == 1
+        var = result.variables[0]
+        assert var.name == "eitc"
+        assert var.entity == "TaxUnit"
+        assert var.period == "Year"
+        assert var.dtype == "Money"
+        assert var.label == "Earned Income Tax Credit"
+
+    def test_parse_variable_formula(self):
+        """Can parse formula block."""
+        cos = """
+variable tax {
+  formula {
+    let rate = 0.2
+    return income * rate
+  }
+}
+"""
+        result = parse_cos(cos)
+        var = result.variables[0]
+        assert "let rate = 0.2" in var.formula
+        assert "return income * rate" in var.formula
+
+    def test_parse_multiple_variables(self):
+        """Can parse multiple variables."""
+        cos = """
+variable a {
+  formula { return 1 }
+}
+
+variable b {
+  formula { return 2 }
+}
+"""
+        result = parse_cos(cos)
+        assert len(result.variables) == 2
+        assert result.variables[0].name == "a"
+        assert result.variables[1].name == "b"
+
+
+class TestParseComments:
+    """Tests for comment handling."""
+
+    def test_line_comments(self):
+        """Line comments starting with # are ignored."""
+        cos = """
+# This is a file comment
+variable foo {
+  # This describes the formula
+  formula { return 0 }
+}
+"""
+        result = parse_cos(cos)
+        assert len(result.variables) == 1
+
+    def test_formula_comments_preserved(self):
+        """Comments inside formula are preserved (for JS output)."""
+        cos = """
+variable foo {
+  formula {
+    # 32(a)(1): Credit base
+    let base = income * rate
+    return base
+  }
+}
+"""
+        result = parse_cos(cos)
+        assert "# 32(a)(1)" in result.variables[0].formula
+
+
+class TestFullFile:
+    """Tests for complete .cos file parsing."""
+
+    def test_parse_complete_file(self):
+        """Can parse a complete .cos file."""
+        cos = """
+# 26 USC 32 - Earned Income Tax Credit
+
+source {
+  lawarchive: us/statute/26/32/2025-01-01
+  citation: "26 USC 32"
+  accessed: 2025-12-12
+}
+
+parameters {
+  credit_pct: statute/26/32/b/1/credit_pct
+  earned_income_amount: guidance/irs/rp-24-40/eitc/earned_income_amount
+}
+
+variable eitc {
+  entity TaxUnit
+  period Year
+  dtype Money
+  label "Earned Income Tax Credit"
+
+  formula {
+    let credit_base = credit_pct[n_children] * min(earned_income, earned_income_amount[n_children])
+    return max(0, credit_base - phaseout)
+  }
+}
+"""
+        result = parse_cos(cos)
+        assert result.source.citation == "26 USC 32"
+        assert "credit_pct" in result.parameters
+        assert len(result.variables) == 1
+        assert result.variables[0].name == "eitc"
+
+    def test_cos_file_to_js_generator(self):
+        """CosFile can be converted to JSCodeGenerator."""
+        cos = """
+source {
+  citation: "Test"
+  accessed: 2025-01-01
+}
+
+parameters {
+  rate: test/path
+}
+
+variable tax {
+  label "Tax"
+  formula {
+    return income * 0.2
+  }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "function calculate(" in code
