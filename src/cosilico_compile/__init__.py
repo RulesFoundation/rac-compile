@@ -1,10 +1,11 @@
 """
 cosilico-compile: Compile Cosilico DSL to standalone JavaScript.
 
-This module generates JS code from .cosilico files for use in browsers
+This module generates JS code from .cos files for use in browsers
 and Node.js without any Python dependencies.
 """
 
-from .js_generator import JSCodeGenerator, generate_eitc_calculator
+from .js_generator import JSCodeGenerator, generate_eitc_calculator, Parameter, Variable
 
-__all__ = ["JSCodeGenerator", "generate_eitc_calculator"]
+__version__ = "0.1.0"
+__all__ = ["JSCodeGenerator", "generate_eitc_calculator", "Parameter", "Variable"]
