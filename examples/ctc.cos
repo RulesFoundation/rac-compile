@@ -1,0 +1,102 @@
+# 26 USC 24 - Child Tax Credit
+# Tax Year 2025 implementation
+
+source {
+  lawarchive: us/statute/26/24/2025-01-01
+  citation: "26 USC 24"
+  accessed: 2025-12-12
+}
+
+# Statutory amounts from 26 USC 24
+parameter credit_per_child {
+  source: "26 USC 24(a)"
+  values {
+    0: 2000
+  }
+}
+
+parameter refundable_max {
+  source: "26 USC 24(d)(1)(B)"
+  values {
+    0: 1700
+  }
+}
+
+parameter refundable_rate {
+  source: "26 USC 24(d)(1)(A)"
+  values {
+    0: 15
+  }
+}
+
+parameter refundable_threshold {
+  source: "26 USC 24(d)(1)(A)"
+  values {
+    0: 2500
+  }
+}
+
+parameter phaseout_single {
+  source: "26 USC 24(b)(2)"
+  values {
+    0: 200000
+  }
+}
+
+parameter phaseout_joint {
+  source: "26 USC 24(b)(2)"
+  values {
+    0: 400000
+  }
+}
+
+parameter phaseout_rate {
+  source: "26 USC 24(b)(1)"
+  values {
+    0: 50
+  }
+}
+
+variable ctc {
+  entity TaxUnit
+  period Year
+  dtype Money
+  label "Child Tax Credit"
+
+  formula {
+    # 24(a): Base credit per qualifying child
+    let baseCredit = n_qualifying_children * credit_per_child[0]
+
+    # 24(b): Phaseout for high earners
+    let phaseoutStart = is_joint ? phaseout_joint[0] : phaseout_single[0]
+    let excess = max(0, agi - phaseoutStart)
+    # Phaseout is $50 per $1,000 over threshold (rounded up)
+    let phaseoutAmount = ceil(excess / 1000) * phaseout_rate[0]
+
+    # Credit after phaseout (can't go below zero)
+    let creditAfterPhaseout = max(0, baseCredit - phaseoutAmount)
+
+    return round(creditAfterPhaseout)
+  }
+}
+
+variable actc {
+  entity TaxUnit
+  period Year
+  dtype Money
+  label "Additional Child Tax Credit (Refundable)"
+
+  formula {
+    # 24(d): Refundable portion (ACTC)
+    # 15% of earned income above $2,500, up to $1,700 per child
+    let earnedIncomeAboveThreshold = max(0, earned_income - refundable_threshold[0])
+    let refundableByEarnings = earnedIncomeAboveThreshold * refundable_rate[0] / 100
+    let maxRefundable = n_qualifying_children * refundable_max[0]
+
+    # ACTC is the lesser of: refundable calc or unused nonrefundable credit
+    # (Simplified: assuming all CTC would be refundable if earned income qualifies)
+    let actcAmount = min(refundableByEarnings, maxRefundable)
+
+    return round(actcAmount)
+  }
+}

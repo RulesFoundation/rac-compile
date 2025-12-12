@@ -82,10 +82,16 @@ class CosFile:
 
     def _extract_inputs(self, formula: str) -> list[str]:
         """Extract likely input variable names from formula."""
-        # Common input patterns
+        # Common input patterns for tax/benefit calculations
         common_inputs = [
+            # Income types
             "income", "earned_income", "agi", "wages",
-            "n_children", "num_children", "is_joint", "is_married",
+            "gross_income", "net_income", "tax_liability",
+            # Family/household composition
+            "n_children", "num_children", "n_qualifying_children",
+            "household_size", "family_size",
+            # Filing status
+            "is_joint", "is_married", "filing_status",
         ]
         found = []
         for inp in common_inputs:

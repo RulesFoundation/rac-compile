@@ -387,3 +387,79 @@ class TestExampleFiles:
             text=True,
         )
         assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
+
+    def test_ctc_example_parses(self):
+        """examples/ctc.cos parses correctly with parameter values."""
+        ctc_path = Path(__file__).parent.parent / "examples" / "ctc.cos"
+        if not ctc_path.exists():
+            pytest.skip("examples/ctc.cos not found")
+
+        content = ctc_path.read_text()
+        result = parse_cos(content)
+
+        assert result.source is not None
+        assert result.source.citation == "26 USC 24"
+        assert len(result.parameters) == 7
+        assert "credit_per_child" in result.parameters
+        assert result.parameters["credit_per_child"].values == {0: 2000.0}
+        assert len(result.variables) == 2
+        assert result.variables[0].name == "ctc"
+        assert result.variables[1].name == "actc"
+
+    def test_ctc_example_compiles_to_valid_js(self):
+        """examples/ctc.cos compiles to syntactically valid JS."""
+        ctc_path = Path(__file__).parent.parent / "examples" / "ctc.cos"
+        if not ctc_path.exists():
+            pytest.skip("examples/ctc.cos not found")
+
+        content = ctc_path.read_text()
+        result = parse_cos(content)
+        gen = result.to_js_generator()
+        code = gen.generate()
+
+        # Check JS syntax with Node.js (use --input-type=module for ESM)
+        proc = subprocess.run(
+            ["node", "--input-type=module", "--check"],
+            input=code,
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
+
+    def test_snap_example_parses(self):
+        """examples/snap.cos parses correctly with parameter values."""
+        snap_path = Path(__file__).parent.parent / "examples" / "snap.cos"
+        if not snap_path.exists():
+            pytest.skip("examples/snap.cos not found")
+
+        content = snap_path.read_text()
+        result = parse_cos(content)
+
+        assert result.source is not None
+        assert result.source.citation == "7 USC 2017"
+        assert len(result.parameters) == 5
+        assert "max_allotment" in result.parameters
+        assert result.parameters["max_allotment"].values[1] == 292.0
+        assert len(result.variables) == 2
+        assert result.variables[0].name == "snap_eligible"
+        assert result.variables[1].name == "snap_benefit"
+
+    def test_snap_example_compiles_to_valid_js(self):
+        """examples/snap.cos compiles to syntactically valid JS."""
+        snap_path = Path(__file__).parent.parent / "examples" / "snap.cos"
+        if not snap_path.exists():
+            pytest.skip("examples/snap.cos not found")
+
+        content = snap_path.read_text()
+        result = parse_cos(content)
+        gen = result.to_js_generator()
+        code = gen.generate()
+
+        # Check JS syntax with Node.js (use --input-type=module for ESM)
+        proc = subprocess.run(
+            ["node", "--input-type=module", "--check"],
+            input=code,
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
