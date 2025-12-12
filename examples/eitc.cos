@@ -1,0 +1,46 @@
+# 26 USC 32 - Earned Income Tax Credit
+# Tax Year 2025 implementation
+
+source {
+  lawarchive: us/statute/26/32/2025-01-01
+  citation: "26 USC 32"
+  accessed: 2025-12-12
+}
+
+parameters {
+  # Statutory percentages from 26 USC 32(b)(1)
+  credit_pct: statute/26/32/b/1/credit_pct
+  phaseout_pct: statute/26/32/b/1/phaseout_pct
+
+  # Inflation-adjusted thresholds from Rev. Proc. 2024-40
+  earned_income_amount: guidance/irs/rp-24-40/eitc/earned_income_amount
+  phaseout_single: guidance/irs/rp-24-40/eitc/phaseout_single
+  phaseout_joint: guidance/irs/rp-24-40/eitc/phaseout_joint
+}
+
+variable eitc {
+  entity TaxUnit
+  period Year
+  dtype Money
+  label "Earned Income Tax Credit"
+
+  formula {
+    # Cap children at 3 per 32(b)(1)
+    let n = min(n_children, 3)
+    let creditPct = credit_pct[n] / 100
+    let phaseoutPct = phaseout_pct[n] / 100
+    let earnedAmount = earned_income_amount[n]
+    let phaseoutStart = is_joint ? phaseout_joint[n] : phaseout_single[n]
+
+    # 32(a)(1): Credit percentage of earned income up to earned income amount
+    let creditBase = creditPct * min(earned_income, earnedAmount)
+
+    # 32(a)(2): Phaseout based on greater of AGI or earned income
+    let incomeForPhaseout = max(agi, earned_income)
+    let excess = max(0, incomeForPhaseout - phaseoutStart)
+    let phaseout = phaseoutPct * excess
+
+    # Final credit (non-negative, rounded to nearest dollar)
+    return round(max(0, creditBase - phaseout))
+  }
+}

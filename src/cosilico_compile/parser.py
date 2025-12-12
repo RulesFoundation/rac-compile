@@ -6,6 +6,7 @@ that can be compiled to JavaScript.
 """
 
 import re
+import textwrap
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -87,13 +88,32 @@ class CosFile:
 
     def _formula_to_js(self, formula: str) -> str:
         """Convert formula DSL to JavaScript."""
-        js = formula.strip()
+        # Normalize indentation using textwrap.dedent
+        js = textwrap.dedent(formula).strip()
 
         # Convert let statements
         js = re.sub(r"^let\s+", "const ", js, flags=re.MULTILINE)
 
         # Convert comments (# to //)
         js = re.sub(r"#\s*", "// ", js)
+
+        # Convert DSL functions to JS Math functions
+        # Must do these before adding PARAMS. prefix to avoid double-converting
+        js = re.sub(r"\bmin\(", "Math.min(", js)
+        js = re.sub(r"\bmax\(", "Math.max(", js)
+        js = re.sub(r"\bround\(", "Math.round(", js)
+        js = re.sub(r"\bfloor\(", "Math.floor(", js)
+        js = re.sub(r"\bceil\(", "Math.ceil(", js)
+        js = re.sub(r"\babs\(", "Math.abs(", js)
+
+        # Convert parameter references to PARAMS.name
+        for param_name in self.parameters.keys():
+            # Match param_name followed by [ (for bracket access)
+            js = re.sub(
+                rf"\b{param_name}\[",
+                f"PARAMS.{param_name}[",
+                js
+            )
 
         # Wrap in IIFE if multi-line
         if "\n" in js or "const " in js:
@@ -225,7 +245,8 @@ def _parse_variable_block(name: str, content: str) -> VariableBlock:
         re.DOTALL,
     )
     if formula_match:
-        var.formula = formula_match.group(1).strip()
+        # Use dedent to normalize indentation, then strip trailing whitespace
+        var.formula = textwrap.dedent(formula_match.group(1)).strip()
 
     # Parse metadata (everything before formula)
     pre_formula = content

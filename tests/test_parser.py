@@ -4,6 +4,9 @@ Tests for .cos DSL parser.
 TDD: Tests define the DSL syntax we want to support.
 """
 
+import subprocess
+from pathlib import Path
+
 import pytest
 from src.cosilico_compile.parser import parse_cos, CosFile, SourceBlock, VariableBlock
 
@@ -153,6 +156,74 @@ variable foo {
         assert "# 32(a)(1)" in result.variables[0].formula
 
 
+class TestFormulaConversion:
+    """Tests for formula DSL to JS conversion."""
+
+    def test_converts_min_to_math_min(self):
+        """min() is converted to Math.min()."""
+        cos = """
+variable x {
+  formula { return min(a, b) }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "Math.min(a, b)" in code
+
+    def test_converts_max_to_math_max(self):
+        """max() is converted to Math.max()."""
+        cos = """
+variable x {
+  formula { return max(a, b) }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "Math.max(a, b)" in code
+
+    def test_converts_round_to_math_round(self):
+        """round() is converted to Math.round()."""
+        cos = """
+variable x {
+  formula { return round(income) }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "Math.round(income)" in code
+
+    def test_converts_parameter_references(self):
+        """Parameter references are converted to PARAMS.name[]."""
+        cos = """
+parameters {
+  rate: test/path
+}
+
+variable x {
+  formula { return rate[0] * income }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "PARAMS.rate[0]" in code
+
+    def test_nested_math_functions(self):
+        """Nested math functions work correctly."""
+        cos = """
+variable x {
+  formula { return max(0, round(min(a, b))) }
+}
+"""
+        result = parse_cos(cos)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "Math.max(0, Math.round(Math.min(a, b)))" in code
+
+
 class TestFullFile:
     """Tests for complete .cos file parsing."""
 
@@ -213,3 +284,63 @@ variable tax {
         gen = result.to_js_generator()
         code = gen.generate()
         assert "function calculate(" in code
+
+
+class TestExampleFiles:
+    """Tests for example .cos files."""
+
+    def test_eitc_example_parses(self):
+        """examples/eitc.cos parses correctly."""
+        eitc_path = Path(__file__).parent.parent / "examples" / "eitc.cos"
+        if not eitc_path.exists():
+            pytest.skip("examples/eitc.cos not found")
+
+        content = eitc_path.read_text()
+        result = parse_cos(content)
+
+        assert result.source is not None
+        assert result.source.citation == "26 USC 32"
+        assert len(result.parameters) == 5
+        assert "credit_pct" in result.parameters
+        assert len(result.variables) == 1
+        assert result.variables[0].name == "eitc"
+
+    def test_eitc_example_compiles_to_valid_js(self):
+        """examples/eitc.cos compiles to syntactically valid JS."""
+        eitc_path = Path(__file__).parent.parent / "examples" / "eitc.cos"
+        if not eitc_path.exists():
+            pytest.skip("examples/eitc.cos not found")
+
+        content = eitc_path.read_text()
+        result = parse_cos(content)
+        gen = result.to_js_generator()
+        code = gen.generate()
+
+        # Check JS syntax with Node.js (use --input-type=module for ESM)
+        proc = subprocess.run(
+            ["node", "--input-type=module", "--check"],
+            input=code,
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
+
+    def test_simple_tax_example_compiles(self):
+        """examples/simple_tax.cos compiles to valid JS."""
+        simple_path = Path(__file__).parent.parent / "examples" / "simple_tax.cos"
+        if not simple_path.exists():
+            pytest.skip("examples/simple_tax.cos not found")
+
+        content = simple_path.read_text()
+        result = parse_cos(content)
+        gen = result.to_js_generator()
+        code = gen.generate()
+
+        # Check JS syntax with Node.js (use --input-type=module for ESM)
+        proc = subprocess.run(
+            ["node", "--input-type=module", "--check"],
+            input=code,
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
