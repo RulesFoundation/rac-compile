@@ -7,15 +7,56 @@ source {
   accessed: 2025-12-12
 }
 
-parameters {
-  # Statutory percentages from 26 USC 32(b)(1)
-  credit_pct: statute/26/32/b/1/credit_pct
-  phaseout_pct: statute/26/32/b/1/phaseout_pct
+# Statutory percentages from 26 USC 32(b)(1)
+parameter credit_pct {
+  source: "26 USC 32(b)(1)"
+  values {
+    0: 7.65
+    1: 34
+    2: 40
+    3: 45
+  }
+}
 
-  # Inflation-adjusted thresholds from Rev. Proc. 2024-40
-  earned_income_amount: guidance/irs/rp-24-40/eitc/earned_income_amount
-  phaseout_single: guidance/irs/rp-24-40/eitc/phaseout_single
-  phaseout_joint: guidance/irs/rp-24-40/eitc/phaseout_joint
+parameter phaseout_pct {
+  source: "26 USC 32(b)(1)"
+  values {
+    0: 7.65
+    1: 15.98
+    2: 21.06
+    3: 21.06
+  }
+}
+
+# Inflation-adjusted thresholds from Rev. Proc. 2024-40
+parameter earned_income_amount {
+  source: "Rev. Proc. 2024-40"
+  values {
+    0: 8260
+    1: 12730
+    2: 17880
+    3: 17880
+  }
+}
+
+parameter phaseout_single {
+  source: "Rev. Proc. 2024-40"
+  values {
+    0: 10620
+    1: 23350
+    2: 23350
+    3: 23350
+  }
+}
+
+parameter phaseout_joint {
+  source: "Rev. Proc. 2024-40"
+  values {
+    0: 17730
+    1: 30470
+    2: 30470
+    3: 30470
+  }
 }
 
 variable eitc {

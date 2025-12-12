@@ -23,6 +23,14 @@ class SourceBlock:
 
 
 @dataclass
+class ParameterDef:
+    """Parsed parameter definition."""
+
+    source: str = ""
+    values: dict[int, float] = field(default_factory=dict)
+
+
+@dataclass
 class VariableBlock:
     """Parsed variable block."""
 
@@ -39,7 +47,7 @@ class CosFile:
     """Parsed .cos file."""
 
     source: Optional[SourceBlock] = None
-    parameters: dict[str, str] = field(default_factory=dict)
+    parameters: dict[str, ParameterDef] = field(default_factory=dict)
     variables: list[VariableBlock] = field(default_factory=list)
 
     def to_js_generator(self) -> JSCodeGenerator:
@@ -50,10 +58,9 @@ class CosFile:
         citation = self.source.citation if self.source else None
 
         # Parameters become PARAMS entries
-        # Note: In a full implementation, we'd resolve the paths to actual values
-        # For now, we just note them as placeholders
-        for name, path in self.parameters.items():
-            gen.add_parameter(name, {0: 0}, path)  # Placeholder values
+        for name, param_def in self.parameters.items():
+            values = param_def.values if param_def.values else {0: 0}
+            gen.add_parameter(name, values, param_def.source)
 
         # Variables become calculations
         for var in self.variables:
@@ -167,7 +174,7 @@ def parse_cos(content: str) -> CosFile:
     if source_match:
         result.source = _parse_source_block(source_match.group(1))
 
-    # Parse parameters block
+    # Parse parameters block (simple format)
     params_match = re.search(
         r"parameters\s*\{([^}]+)\}",
         content,
@@ -175,6 +182,17 @@ def parse_cos(content: str) -> CosFile:
     )
     if params_match:
         result.parameters = _parse_parameters_block(params_match.group(1))
+
+    # Parse individual parameter blocks (full format with values)
+    # Use a pattern that matches nested braces for values block
+    parameter_pattern = re.compile(
+        r"parameter\s+(\w+)\s*\{((?:[^{}]|\{[^{}]*\})*)\}",
+        re.DOTALL,
+    )
+    for match in parameter_pattern.finditer(content):
+        name = match.group(1)
+        body = match.group(2)
+        result.parameters[name] = _parse_parameter_block(name, body)
 
     # Parse variable blocks
     variable_pattern = re.compile(
@@ -214,8 +232,8 @@ def _parse_source_block(content: str) -> SourceBlock:
     return source
 
 
-def _parse_parameters_block(content: str) -> dict[str, str]:
-    """Parse parameters block content."""
+def _parse_parameters_block(content: str) -> dict[str, ParameterDef]:
+    """Parse parameters block content (simple key: source format)."""
     params = {}
 
     for line in content.split("\n"):
@@ -229,9 +247,45 @@ def _parse_parameters_block(content: str) -> dict[str, str]:
 
         if ":" in line:
             key, value = line.split(":", 1)
-            params[key.strip()] = value.strip()
+            params[key.strip()] = ParameterDef(source=value.strip())
 
     return params
+
+
+def _parse_parameter_block(name: str, content: str) -> ParameterDef:
+    """Parse a single parameter block with source and values."""
+    param = ParameterDef()
+
+    # Extract values block first
+    values_match = re.search(
+        r"values\s*\{([^}]+)\}",
+        content,
+        re.DOTALL,
+    )
+    if values_match:
+        values_content = values_match.group(1)
+        for line in values_content.split("\n"):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" in line:
+                key, value = line.split(":", 1)
+                try:
+                    param.values[int(key.strip())] = float(value.strip())
+                except ValueError:
+                    pass  # Skip invalid entries
+
+    # Parse source
+    source_match = re.search(r'source:\s*"([^"]+)"', content)
+    if source_match:
+        param.source = source_match.group(1)
+    else:
+        # Try unquoted source
+        source_match = re.search(r"source:\s*(\S+)", content)
+        if source_match:
+            param.source = source_match.group(1)
+
+    return param
 
 
 def _parse_variable_block(name: str, content: str) -> VariableBlock:

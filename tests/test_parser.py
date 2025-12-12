@@ -53,7 +53,7 @@ parameters {
 """
         result = parse_cos(cos)
         assert "credit_pct" in result.parameters
-        assert result.parameters["credit_pct"] == "statute/26/32/b/1/credit_pct"
+        assert result.parameters["credit_pct"].source == "statute/26/32/b/1/credit_pct"
 
     def test_parse_parameters_with_comments(self):
         """Comments are ignored in parameters block."""
@@ -65,7 +65,46 @@ parameters {
 """
         result = parse_cos(cos)
         assert "rate" in result.parameters
-        assert result.parameters["rate"] == "some/path"
+        assert result.parameters["rate"].source == "some/path"
+
+    def test_parse_parameter_with_values(self):
+        """Can parse parameter block with inline values."""
+        cos = """
+parameter credit_pct {
+  source: "26 USC 32(b)(1)"
+  values {
+    0: 7.65
+    1: 34
+    2: 40
+    3: 45
+  }
+}
+"""
+        result = parse_cos(cos)
+        assert "credit_pct" in result.parameters
+        param = result.parameters["credit_pct"]
+        assert param.source == "26 USC 32(b)(1)"
+        assert param.values == {0: 7.65, 1: 34, 2: 40, 3: 45}
+
+    def test_parse_mixed_parameters(self):
+        """Can mix parameter blocks and simple parameters."""
+        cos = """
+parameters {
+  simple_rate: some/path
+}
+
+parameter credit_pct {
+  source: "26 USC 32(b)(1)"
+  values {
+    0: 7.65
+    1: 34
+  }
+}
+"""
+        result = parse_cos(cos)
+        assert "simple_rate" in result.parameters
+        assert "credit_pct" in result.parameters
+        assert result.parameters["credit_pct"].values == {0: 7.65, 1: 34}
 
 
 class TestParseVariable:
@@ -290,7 +329,7 @@ class TestExampleFiles:
     """Tests for example .cos files."""
 
     def test_eitc_example_parses(self):
-        """examples/eitc.cos parses correctly."""
+        """examples/eitc.cos parses correctly with parameter values."""
         eitc_path = Path(__file__).parent.parent / "examples" / "eitc.cos"
         if not eitc_path.exists():
             pytest.skip("examples/eitc.cos not found")
@@ -302,6 +341,10 @@ class TestExampleFiles:
         assert result.source.citation == "26 USC 32"
         assert len(result.parameters) == 5
         assert "credit_pct" in result.parameters
+        # Check parameter has actual values
+        credit_pct = result.parameters["credit_pct"]
+        assert credit_pct.source == "26 USC 32(b)(1)"
+        assert credit_pct.values == {0: 7.65, 1: 34.0, 2: 40.0, 3: 45.0}
         assert len(result.variables) == 1
         assert result.variables[0].name == "eitc"
 

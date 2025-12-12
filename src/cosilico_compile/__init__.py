@@ -6,7 +6,7 @@ and Node.js without any Python dependencies.
 """
 
 from .js_generator import JSCodeGenerator, generate_eitc_calculator, Parameter, Variable
-from .parser import parse_cos, CosFile, SourceBlock, VariableBlock
+from .parser import parse_cos, CosFile, SourceBlock, VariableBlock, ParameterDef
 
 __version__ = "0.1.0"
 __all__ = [
@@ -18,4 +18,5 @@ __all__ = [
     "CosFile",
     "SourceBlock",
     "VariableBlock",
+    "ParameterDef",
 ]
