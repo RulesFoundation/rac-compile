@@ -33,10 +33,13 @@ dev = [
 # PolicyEngine for external validation (heavy dependency, optional)
 validation = [
     "policyengine-us>=1.0",
+    "pandas>=1.5",
+    "tqdm>=4.0",
 ]
 
 [project.scripts]
 cosilico-compile = "cosilico_compile.cli:main"
+cosilico-validate = "cosilico_compile.validation.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cosilico_compile"]
