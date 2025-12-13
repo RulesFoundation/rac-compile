@@ -32,8 +32,8 @@ parameter phaseout_pct {
 parameter earned_income_amount {
   source: "Rev. Proc. 2024-40"
   values {
-    0: 8260
-    1: 12730
+    0: 8484
+    1: 12729
     2: 17880
     3: 17880
   }

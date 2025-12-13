@@ -16,7 +16,7 @@ EITC_PARAMS = {
     "credit_pct": {0: 7.65, 1: 34.0, 2: 40.0, 3: 45.0},
     "phaseout_pct": {0: 7.65, 1: 15.98, 2: 21.06, 3: 21.06},
     # Rev. Proc. 2024-40 - inflation-adjusted thresholds for TY2025
-    "earned_income_amount": {0: 8260, 1: 12730, 2: 17880, 3: 17880},
+    "earned_income_amount": {0: 8484, 1: 12729, 2: 17880, 3: 17880},
     "phaseout_single": {0: 10620, 1: 23350, 2: 23350, 3: 23350},
     "phaseout_joint": {0: 17730, 1: 30470, 2: 30470, 3: 30470},
 }

@@ -401,7 +401,7 @@ class TestExampleFiles:
         assert result.source.citation == "26 USC 24"
         assert len(result.parameters) == 7
         assert "credit_per_child" in result.parameters
-        assert result.parameters["credit_per_child"].values == {0: 2000.0}
+        assert result.parameters["credit_per_child"].values == {0: 2200.0}  # TY2025
         assert len(result.variables) == 2
         assert result.variables[0].name == "ctc"
         assert result.variables[1].name == "actc"

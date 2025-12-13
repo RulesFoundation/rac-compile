@@ -7,18 +7,18 @@ source {
   accessed: 2025-12-12
 }
 
-# Statutory amounts from 26 USC 24
+# Statutory amounts from 26 USC 24 (TY2025)
 parameter credit_per_child {
   source: "26 USC 24(a)"
   values {
-    0: 2000
+    0: 2200
   }
 }
 
 parameter refundable_max {
   source: "26 USC 24(d)(1)(B)"
   values {
-    0: 1700
+    0: 1900
   }
 }
 

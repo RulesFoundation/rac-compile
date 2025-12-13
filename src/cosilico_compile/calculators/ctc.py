@@ -12,10 +12,10 @@ from dataclasses import dataclass
 
 # Parameters from statute
 CTC_PARAMS = {
-    # 26 USC 24(a) - base credit
-    "credit_per_child": 2000,
-    # 26 USC 24(d)(1)(B) - max refundable per child
-    "refundable_max": 1700,
+    # 26 USC 24(a) - base credit (TY2025: $2,200)
+    "credit_per_child": 2200,
+    # 26 USC 24(d)(1)(B) - max refundable per child (TY2025: $1,900)
+    "refundable_max": 1900,
     # 26 USC 24(d)(1)(A) - refundable rate
     "refundable_rate": 15,  # percent
     # 26 USC 24(d)(1)(A) - earned income threshold for refundable

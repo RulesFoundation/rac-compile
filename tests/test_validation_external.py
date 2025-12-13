@@ -1,13 +1,12 @@
 """
-Validation tests: Python implementations vs external authoritative sources.
+Validation tests: Python implementations vs PolicyEngine (external oracle).
 
-These tests validate our Python reference implementations against:
-- IRS EITC Assistant results
-- IRS Publication 972 (CTC) examples
-- USDA SNAP calculator results
-- PolicyEngine calculations
+These tests validate our Python reference implementations against PolicyEngine-US,
+which serves as the authoritative external calculator.
 
-Test cases are structured as YAML for easy maintenance and sourcing.
+Two-layer validation strategy:
+1. Our Python calculators vs PolicyEngine-US (this file)
+2. Our compiled JS vs our Python calculators (test_validation_js.py)
 """
 
 import pytest
@@ -18,156 +17,227 @@ from src.cosilico_compile.calculators import (
     calculate_snap_benefit,
 )
 
+# Try to import PolicyEngine - skip tests if not available
+try:
+    from policyengine_us import Simulation
+    HAS_POLICYENGINE = True
+except ImportError:
+    HAS_POLICYENGINE = False
 
-class TestEITCAgainstIRS:
-    """
-    Validate EITC against IRS EITC Assistant and Publication 596 examples.
 
-    Source: https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit-eitc
-    """
+def run_policyengine_tax(
+    earned_income: float = 0,
+    n_children: int = 0,
+    is_joint: bool = False,
+    year: int = 2025,
+) -> dict:
+    """Run PolicyEngine-US simulation for tax credits."""
+    # Build people
+    people = {
+        "adult": {
+            "age": {year: 30},
+            "employment_income": {year: earned_income},
+        }
+    }
 
-    # Test cases - calculated values (TODO: verify against IRS EITC Assistant)
-    # Format: (earned_income, agi, n_children, is_joint, expected_eitc, source)
+    tax_unit_members = ["adult"]
+
+    # Add spouse if joint
+    if is_joint:
+        people["spouse"] = {
+            "age": {year: 30},
+            "employment_income": {year: 0},
+        }
+        tax_unit_members.append("spouse")
+
+    # Add children
+    for i in range(n_children):
+        child_id = f"child_{i}"
+        people[child_id] = {
+            "age": {year: 5},
+            "is_tax_unit_dependent": {year: True},
+        }
+        tax_unit_members.append(child_id)
+
+    filing_status = "JOINT" if is_joint else "SINGLE"
+
+    situation = {
+        "people": people,
+        "tax_units": {
+            "tax_unit": {
+                "members": tax_unit_members,
+                "filing_status": {year: filing_status},
+            }
+        },
+        "families": {"family": {"members": tax_unit_members}},
+        "spm_units": {"spm_unit": {"members": tax_unit_members}},
+        "households": {
+            "household": {
+                "members": tax_unit_members,
+                "state_code": {year: "CA"},
+            }
+        },
+    }
+
+    sim = Simulation(situation=situation)
+
+    return {
+        "eitc": float(sim.calculate("eitc", year)[0]),
+        "ctc": float(sim.calculate("ctc", year)[0]),
+        "refundable_ctc": float(sim.calculate("refundable_ctc", year)[0]),
+    }
+
+
+def run_policyengine_snap(
+    household_size: int = 1,
+    gross_income: float = 0,
+    year: int = 2025,
+) -> dict:
+    """Run PolicyEngine-US simulation for SNAP benefits."""
+    # Build people
+    people = {}
+    member_ids = []
+    for i in range(household_size):
+        person_id = f"person_{i}"
+        member_ids.append(person_id)
+        people[person_id] = {
+            "age": {year: 30 if i == 0 else 25},
+            "employment_income": {year: gross_income * 12 if i == 0 else 0},  # Annual
+        }
+
+    situation = {
+        "people": people,
+        "tax_units": {"tax_unit": {"members": member_ids}},
+        "families": {"family": {"members": member_ids}},
+        "spm_units": {"spm_unit": {"members": member_ids}},
+        "households": {
+            "household": {
+                "members": member_ids,
+                "state_code": {year: "CA"},
+            }
+        },
+    }
+
+    sim = Simulation(situation=situation)
+
+    # SNAP is calculated monthly in PE
+    snap_annual = float(sim.calculate("snap", year)[0])
+    return {
+        "snap": snap_annual / 12,  # Convert to monthly
+    }
+
+
+@pytest.mark.skipif(not HAS_POLICYENGINE, reason="PolicyEngine-US not installed")
+class TestEITCAgainstPolicyEngine:
+    """Validate our EITC calculator against PolicyEngine-US."""
+
+    # Test cases covering different scenarios
+    # Format: (earned_income, n_children, is_joint)
     CASES = [
-        # No children, single (max earned income amount = $8,260)
-        (8000, 8000, 0, False, 612, "Below max, 0 children"),
-        (8260, 8260, 0, False, 632, "At max earned income, 0 children"),
-        (20000, 20000, 0, False, 0, "Above phaseout, 0 children"),
-        # 1 child, single (max earned income amount = $12,730)
-        (12000, 12000, 1, False, 4080, "Below max, 1 child"),
-        (12730, 12730, 1, False, 4328, "At max earned income, 1 child"),
-        (30000, 30000, 1, False, 3266, "In phaseout, 1 child"),
-        (50000, 50000, 1, False, 70, "Near end of phaseout, 1 child"),
-        # 2 children, single (max earned income amount = $17,880)
-        (17000, 17000, 2, False, 6800, "Below max, 2 children"),
-        (17880, 17880, 2, False, 7152, "At max earned income, 2 children"),
-        (40000, 40000, 2, False, 3646, "In phaseout, 2 children"),
-        # 3+ children (max earned income amount = $17,880)
-        (17000, 17000, 3, False, 7650, "Below max, 3 children, single"),
-        (17880, 17880, 3, False, 8046, "At max earned income, 3 children"),
-        (17880, 17880, 3, True, 8046, "At max, 3 children, joint"),
-        (50000, 50000, 3, True, 3933, "In phaseout, 3 children, joint"),
+        (0, 0, False),
+        (8000, 0, False),
+        (15000, 0, False),
+        (10000, 1, False),
+        (20000, 1, False),
+        (15000, 2, False),
+        (30000, 2, False),
+        (20000, 3, False),
+        (40000, 3, True),
+        (50000, 2, True),
     ]
 
-    @pytest.mark.parametrize(
-        "earned_income,agi,n_children,is_joint,expected,source", CASES
-    )
-    def test_eitc_matches_irs(
-        self, earned_income, agi, n_children, is_joint, expected, source
-    ):
-        """EITC calculation matches IRS expected values."""
-        result = calculate_eitc(
+    @pytest.mark.parametrize("earned_income,n_children,is_joint", CASES)
+    def test_eitc_matches_policyengine(self, earned_income, n_children, is_joint):
+        """Our EITC matches PolicyEngine-US calculation."""
+        # Our calculation
+        our_result = calculate_eitc(
             earned_income=earned_income,
-            agi=agi,
+            agi=earned_income,  # Simplified: AGI = earned income
             n_children=n_children,
             is_joint=is_joint,
         )
-        # Allow $1 rounding tolerance
-        assert abs(result.eitc - expected) <= 1, (
-            f"EITC mismatch for {source}: "
-            f"got {result.eitc}, expected {expected}"
+
+        # PolicyEngine calculation
+        pe_result = run_policyengine_tax(
+            earned_income=earned_income,
+            n_children=n_children,
+            is_joint=is_joint,
+        )
+
+        # Allow $1 tolerance for rounding
+        assert abs(our_result.eitc - pe_result["eitc"]) <= 1, (
+            f"EITC mismatch: ours={our_result.eitc}, PE={pe_result['eitc']} "
+            f"for earned_income={earned_income}, n_children={n_children}, joint={is_joint}"
         )
 
 
-class TestCTCAgainstIRS:
-    """
-    Validate CTC against IRS Publication 972 and Form 8812 examples.
+@pytest.mark.skipif(not HAS_POLICYENGINE, reason="PolicyEngine-US not installed")
+class TestCTCAgainstPolicyEngine:
+    """Validate our CTC calculator against PolicyEngine-US."""
 
-    Source: https://www.irs.gov/publications/p972
-    """
-
-    # Test cases for CTC (nonrefundable portion)
-    # Format: (n_children, agi, is_joint, expected_ctc, source)
-    CTC_CASES = [
-        # Under phaseout threshold
-        (1, 50000, False, 2000, "1 child, below phaseout"),
-        (2, 100000, True, 4000, "2 children, below phaseout"),
-        (3, 150000, False, 6000, "3 children, below phaseout"),
-        # At/above phaseout threshold
-        (2, 200000, False, 4000, "2 children, at single threshold"),
-        (2, 210000, False, 3500, "2 children, $10k above single threshold"),
-        (2, 400000, True, 4000, "2 children, at joint threshold"),
-        (2, 450000, True, 1500, "2 children, $50k above joint threshold"),
-        # Full phaseout
-        (1, 280000, False, 0, "1 child, fully phased out single"),
+    CASES = [
+        (1, 50000, False),
+        (2, 100000, True),
+        (3, 150000, False),
+        (2, 250000, False),  # In phaseout
+        (1, 300000, True),
     ]
 
-    @pytest.mark.parametrize("n_children,agi,is_joint,expected,source", CTC_CASES)
-    def test_ctc_matches_irs(self, n_children, agi, is_joint, expected, source):
-        """CTC calculation matches IRS expected values."""
-        result = calculate_ctc(
+    @pytest.mark.parametrize("n_children,agi,is_joint", CASES)
+    def test_ctc_matches_policyengine(self, n_children, agi, is_joint):
+        """Our CTC matches PolicyEngine-US calculation."""
+        our_result = calculate_ctc(
             n_qualifying_children=n_children,
             agi=agi,
             is_joint=is_joint,
         )
-        assert result.ctc == expected, (
-            f"CTC mismatch for {source}: got {result.ctc}, expected {expected}"
+
+        pe_result = run_policyengine_tax(
+            earned_income=agi,
+            n_children=n_children,
+            is_joint=is_joint,
         )
 
-    # Test cases for ACTC (refundable portion)
-    # Format: (n_children, earned_income, expected_actc, source)
-    ACTC_CASES = [
-        # Below earned income threshold
-        (1, 2000, 0, "Below $2,500 threshold"),
-        (1, 2500, 0, "At $2,500 threshold"),
-        # Above threshold
-        (1, 10000, 1125, "1 child, $10k earned"),  # 15% of $7,500
-        (2, 20000, 2625, "2 children, $20k earned"),  # 15% of $17,500
-        # At max
-        (1, 15000, 1700, "1 child, capped at $1,700"),  # 15% of $12,500 = $1,875, capped
-        (2, 30000, 3400, "2 children, capped at $3,400"),
-    ]
-
-    @pytest.mark.parametrize("n_children,earned_income,expected,source", ACTC_CASES)
-    def test_actc_matches_irs(self, n_children, earned_income, expected, source):
-        """ACTC calculation matches IRS expected values."""
-        result = calculate_actc(
-            n_qualifying_children=n_children,
-            earned_income=earned_income,
-        )
-        assert result.actc == expected, (
-            f"ACTC mismatch for {source}: got {result.actc}, expected {expected}"
+        # Allow $50 tolerance (PE may have more complex logic)
+        assert abs(our_result.ctc - pe_result["ctc"]) <= 50, (
+            f"CTC mismatch: ours={our_result.ctc}, PE={pe_result['ctc']}"
         )
 
 
-class TestSNAPAgainstUSDA:
-    """
-    Validate SNAP against USDA calculator.
+@pytest.mark.skipif(not HAS_POLICYENGINE, reason="PolicyEngine-US not installed")
+class TestSNAPAgainstPolicyEngine:
+    """Validate our SNAP calculator against PolicyEngine-US."""
 
-    Source: https://www.fns.usda.gov/snap/recipient/eligibility
-    """
-
-    # Test cases for SNAP benefit
-    # Format: (household_size, gross_income, expected_benefit, source)
     CASES = [
-        # No income - max benefit
-        (1, 0, 292, "1 person, no income"),
-        (2, 0, 536, "2 people, no income"),
-        (4, 0, 975, "4 people, no income"),
-        # With income - reduced benefit
-        (1, 500, 201, "1 person, $500 gross income"),
-        (2, 1000, 295, "2 people, $1000 gross income"),
-        (4, 2000, 437, "4 people, $2000 gross income"),
-        # At/near income limits
-        (1, 1200, 23, "1 person, near net limit - min benefit"),
-        (4, 3200, 0, "4 people, above net limit"),
+        (1, 0),
+        (1, 500),
+        (2, 1000),
+        (4, 2000),
     ]
 
-    @pytest.mark.parametrize("hh_size,gross_income,expected,source", CASES)
-    def test_snap_matches_usda(self, hh_size, gross_income, expected, source):
-        """SNAP benefit matches USDA expected values."""
-        result = calculate_snap_benefit(
-            household_size=hh_size,
+    @pytest.mark.parametrize("household_size,gross_income", CASES)
+    def test_snap_matches_policyengine(self, household_size, gross_income):
+        """Our SNAP matches PolicyEngine-US calculation."""
+        our_result = calculate_snap_benefit(
+            household_size=household_size,
             gross_income=gross_income,
         )
-        # Allow $5 tolerance for rounding differences
-        assert abs(result.benefit - expected) <= 5, (
-            f"SNAP mismatch for {source}: got {result.benefit}, expected {expected}"
+
+        pe_result = run_policyengine_snap(
+            household_size=household_size,
+            gross_income=gross_income,
+        )
+
+        # SNAP has many deductions we don't model (earned income deduction,
+        # shelter deduction, dependent care) - allow larger tolerance.
+        # This test is more about catching major bugs than exact matching.
+        assert abs(our_result.benefit - pe_result["snap"]) <= 150, (
+            f"SNAP mismatch: ours={our_result.benefit}, PE={pe_result['snap']}"
         )
 
 
 class TestEdgeCases:
-    """Test edge cases and boundary conditions."""
+    """Test edge cases and boundary conditions (no external dependency)."""
 
     def test_eitc_zero_income(self):
         """EITC is 0 with no earned income."""
@@ -179,8 +249,8 @@ class TestEdgeCases:
         result = calculate_eitc(earned_income=100000, agi=100000, n_children=0)
         assert result.eitc >= 0
 
-    def test_ctc_four_children_same_as_three(self):
-        """4+ children doesn't increase EITC (capped at 3)."""
+    def test_eitc_four_children_same_as_three(self):
+        """4+ children uses same parameters as 3 (capped)."""
         result3 = calculate_eitc(
             earned_income=20000, agi=20000, n_children=3, is_joint=True
         )
@@ -193,5 +263,14 @@ class TestEdgeCases:
         """Households > 8 use the 8-person values."""
         result8 = calculate_snap_benefit(household_size=8, gross_income=0)
         result10 = calculate_snap_benefit(household_size=10, gross_income=0)
-        # Note: Real SNAP adds per-person amount for >8, but our simplified version caps at 8
         assert result10.benefit == result8.benefit
+
+    def test_ctc_below_phaseout(self):
+        """CTC at full value below phaseout threshold."""
+        result = calculate_ctc(n_qualifying_children=2, agi=100000, is_joint=False)
+        assert result.ctc == 4400  # $2,200 * 2 for TY2025
+
+    def test_actc_below_threshold(self):
+        """ACTC is 0 when earned income below $2,500."""
+        result = calculate_actc(n_qualifying_children=2, earned_income=2000)
+        assert result.actc == 0

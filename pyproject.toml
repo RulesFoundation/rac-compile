@@ -30,6 +30,10 @@ dev = [
     "pytest-cov>=4.0",
     "ruff>=0.1",
 ]
+# PolicyEngine for external validation (heavy dependency, optional)
+validation = [
+    "policyengine-us>=1.0",
+]
 
 [project.scripts]
 cosilico-compile = "cosilico_compile.cli:main"
