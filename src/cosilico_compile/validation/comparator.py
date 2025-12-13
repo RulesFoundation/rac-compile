@@ -78,6 +78,16 @@ class ComparisonResults:
         ]
 
         for var in self.variables_compared:
+            total_compared = self.matches[var] + len(self.mismatches[var])
+            if total_compared == 0:
+                lines.extend([
+                    f"{var.upper()} Comparison:",
+                    "-" * 40,
+                    "  Skipped (no valid data for comparison)",
+                    "",
+                ])
+                continue
+
             tol = getattr(self.config, f"{var}_tolerance")
             lines.extend([
                 f"{var.upper()} Comparison:",
@@ -200,9 +210,13 @@ class Comparator:
         """Compare a single variable."""
         mismatches = []
 
-        # Handle NaN in PE results (errors during calculation)
+        # Handle NaN in PE results (errors during calculation or missing data)
         valid_mask = ~df[pe_col].isna()
         df_valid = df[valid_mask]
+
+        # If no valid data, return 0 matches (will be excluded from stats)
+        if len(df_valid) == 0:
+            return 0, []
 
         # Check which are within tolerance
         is_match = np.isclose(
@@ -249,7 +263,7 @@ def validate(
     csv_path: Optional[str] = None,
 ) -> ComparisonResults:
     """
-    Run full validation pipeline.
+    Run sample validation pipeline (per-household, slower).
 
     Args:
         source: Data source ("policyengine" or "csv")
@@ -276,6 +290,41 @@ def validate(
 
     print("\nRunning calculators...")
     results_df = run_both(df, year=year)
+
+    print("\nComparing results...")
+    comparator = Comparator(config)
+    results = comparator.compare(results_df)
+
+    print("\n" + results.detailed_report())
+
+    if output_dir:
+        results.save_report(Path(output_dir))
+
+    return results
+
+
+def validate_full(
+    year: int = 2025,
+    output_dir: Optional[str] = None,
+    config: Optional[ComparisonConfig] = None,
+) -> ComparisonResults:
+    """
+    Run full CPS validation using vectorized operations (fast).
+
+    This runs on the entire enhanced CPS dataset using PE Microsimulation,
+    which is orders of magnitude faster than per-household simulations.
+
+    Args:
+        year: Tax year
+        output_dir: Directory to save results
+        config: Comparison configuration
+
+    Returns:
+        ComparisonResults
+    """
+    from .runners import run_both_vectorized
+
+    results_df = run_both_vectorized(year=year)
 
     print("\nComparing results...")
     comparator = Comparator(config)

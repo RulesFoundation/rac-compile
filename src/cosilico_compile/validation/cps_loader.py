@@ -56,8 +56,8 @@ def load_cps_from_policyengine(
             "Install with: pip install policyengine-us"
         )
 
-    # Create microsimulation with enhanced CPS
-    sim = Microsimulation(dataset="enhanced_cps_2024")
+    # Create microsimulation with enhanced CPS (default)
+    sim = Microsimulation()
 
     # Extract tax unit level variables
     tax_unit_id = sim.calculate("tax_unit_id", year)
