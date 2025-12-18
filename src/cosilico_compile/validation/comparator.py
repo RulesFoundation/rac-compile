@@ -168,6 +168,7 @@ class Comparator:
         Args:
             df: DataFrame with both cosilico and PE results
                 (output from runners.run_both)
+                May have attrs["spm_snap_data"] for SNAP comparison
 
         Returns:
             ComparisonResults with match statistics and mismatches
@@ -177,7 +178,11 @@ class Comparator:
         mismatches = {}
         match_rates = {}
 
+        # Compare tax unit level variables (EITC, CTC, ACTC)
         for var_name, cos_col, pe_col in self.VARIABLES:
+            if var_name == "snap":
+                continue  # Handle separately below
+
             if cos_col not in df.columns or pe_col not in df.columns:
                 continue
 
@@ -187,7 +192,25 @@ class Comparator:
             )
             matches[var_name] = var_matches
             mismatches[var_name] = var_mismatches
-            match_rates[var_name] = (var_matches / total * 100) if total > 0 else 0
+            valid_count = var_matches + len(var_mismatches)
+            match_rates[var_name] = (var_matches / valid_count * 100) if valid_count > 0 else 0
+
+        # Compare SNAP at SPM unit level if available
+        spm_df = df.attrs.get("spm_snap_data")
+        if spm_df is not None and len(spm_df) > 0:
+            snap_matches, snap_mismatches = self._compare_variable(
+                spm_df, "snap", "cosilico_snap", "pe_snap", self.config.snap_tolerance,
+                id_col="spm_unit_id"  # SPM uses different ID column
+            )
+            matches["snap"] = snap_matches
+            mismatches["snap"] = snap_mismatches
+            snap_valid = snap_matches + len(snap_mismatches)
+            match_rates["snap"] = (snap_matches / snap_valid * 100) if snap_valid > 0 else 0
+        else:
+            # No SPM data available
+            matches["snap"] = 0
+            mismatches["snap"] = []
+            match_rates["snap"] = 0
 
         return ComparisonResults(
             total_households=total,
@@ -206,9 +229,11 @@ class Comparator:
         cos_col: str,
         pe_col: str,
         tolerance: float,
+        id_col: Optional[str] = None,
     ) -> tuple:
         """Compare a single variable."""
         mismatches = []
+        id_col = id_col or self.config.id_col
 
         # Handle NaN in PE results (errors during calculation or missing data)
         valid_mask = ~df[pe_col].isna()
@@ -241,7 +266,7 @@ class Comparator:
                 pct_diff = (diff / pe_val) * 100
 
             mismatches.append(MismatchRecord(
-                household_id=row[self.config.id_col],
+                household_id=row[id_col],
                 variable=var_name,
                 cosilico_value=cos_val,
                 policyengine_value=pe_val,

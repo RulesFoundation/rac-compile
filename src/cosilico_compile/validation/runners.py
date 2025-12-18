@@ -347,6 +347,10 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
 
     Extracts inputs and PE outputs from Microsimulation, then runs
     cosilico on the same inputs for comparison.
+
+    Handles different entity levels:
+    - Tax unit: EITC, CTC, ACTC
+    - SPM unit: SNAP
     """
     try:
         from policyengine_us import Microsimulation
@@ -359,60 +363,132 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
     print("Loading PolicyEngine Microsimulation...")
     sim = Microsimulation()
 
-    # Get tax unit level data
+    # ==========================================================================
+    # TAX UNIT LEVEL (EITC, CTC, ACTC)
+    # ==========================================================================
+    print("\n--- Tax Unit Level (EITC, CTC, ACTC) ---")
     print("Extracting tax unit data...")
     tax_unit_id = sim.calculate("tax_unit_id", year)
     unique_tu = np.unique(tax_unit_id)
     print(f"Found {len(unique_tu):,} tax units")
 
-    # Calculate PE outputs (tax unit level only - SNAP is SPM unit level)
-    print("Calculating PolicyEngine outputs...")
+    print("Calculating PolicyEngine tax credit outputs...")
     pe_eitc = sim.calculate("eitc", year)
     pe_ctc = sim.calculate("ctc", year)
     pe_actc = sim.calculate("refundable_ctc", year)
-    # Note: SNAP is at SPM unit level, not tax unit - skip for now
 
-    # Get inputs for cosilico
-    print("Extracting input variables...")
+    print("Extracting tax unit input variables...")
     earned_income = sim.calculate("tax_unit_earned_income", year)
     agi = sim.calculate("adjusted_gross_income", year)
     n_children = sim.calculate("tax_unit_children", year)
     filing_status = sim.calculate("filing_status", year)
     tax_unit_size = sim.calculate("tax_unit_size", year)
 
-    # Build tax-unit level DataFrame
-    print("Building comparison dataset...")
-    records = []
-    for i, tu_id in enumerate(tqdm(unique_tu, desc="Tax units")):
+    # ==========================================================================
+    # SPM UNIT LEVEL (SNAP)
+    # ==========================================================================
+    print("\n--- SPM Unit Level (SNAP) ---")
+    print("Extracting SPM unit data...")
+    spm_unit_id = sim.calculate("spm_unit_id", year)
+    unique_spm = np.unique(spm_unit_id)
+    print(f"Found {len(unique_spm):,} SPM units")
+
+    print("Calculating PolicyEngine SNAP output...")
+    pe_snap = sim.calculate("snap", year) / 12  # Monthly
+
+    print("Extracting SPM unit input variables...")
+    spm_unit_size = sim.calculate("spm_unit_size", year)
+    # Use SPM unit net income as proxy for gross (PE models deductions)
+    spm_unit_net_income = sim.calculate("spm_unit_net_income", year)
+
+    # ==========================================================================
+    # BUILD TAX UNIT RECORDS
+    # ==========================================================================
+    print("\nBuilding tax unit comparison dataset...")
+    tu_records = []
+    for tu_id in tqdm(unique_tu, desc="Tax units"):
         mask = tax_unit_id == tu_id
-        idx = np.where(mask)[0][0]  # First person in tax unit
+        idx = np.where(mask)[0][0]
 
         is_joint = filing_status.values[idx] == "JOINT"
-        n_child = int(n_children.values[idx])
-        tu_size = int(tax_unit_size.values[idx])
 
-        records.append({
+        tu_records.append({
             "household_id": int(tu_id),
             "earned_income": float(earned_income.values[idx]),
             "agi": float(agi.values[idx]),
-            "n_children": n_child,
+            "n_children": int(n_children.values[idx]),
             "is_joint": is_joint,
-            "household_size": tu_size,
+            "household_size": int(tax_unit_size.values[idx]),
             "gross_monthly_income": float(agi.values[idx]) / 12,
             "pe_eitc": float(pe_eitc.values[idx]),
             "pe_ctc": float(pe_ctc.values[idx]),
             "pe_actc": float(pe_actc.values[idx]),
-            "pe_snap": np.nan,  # SNAP is at different entity level
         })
 
-    df = pd.DataFrame(records)
+    tu_df = pd.DataFrame(tu_records)
 
-    # Run cosilico vectorized
-    print("\nRunning cosilico (vectorized)...")
-    cosilico_results = run_cosilico_vectorized(df)
+    # ==========================================================================
+    # BUILD SPM UNIT RECORDS FOR SNAP
+    # ==========================================================================
+    print("Building SPM unit comparison dataset...")
+    spm_records = []
+    for spm_id in tqdm(unique_spm, desc="SPM units"):
+        mask = spm_unit_id == spm_id
+        idx = np.where(mask)[0][0]
 
-    # Merge
-    merged = df.merge(cosilico_results, on="household_id")
-    print(f"Comparison dataset: {len(merged):,} tax units")
+        # Get annual income, convert to monthly
+        annual_income = float(spm_unit_net_income.values[idx])
+        monthly_income = max(0, annual_income / 12)
 
-    return merged
+        spm_records.append({
+            "spm_unit_id": int(spm_id),
+            "household_size": int(spm_unit_size.values[idx]),
+            "gross_monthly_income": monthly_income,
+            "pe_snap": float(pe_snap.values[idx]),
+        })
+
+    spm_df = pd.DataFrame(spm_records)
+
+    # Run cosilico SNAP on SPM units
+    print("\nRunning cosilico SNAP (vectorized)...")
+    hh_size = np.minimum(spm_df["household_size"].values, 8)
+    gross_monthly = spm_df["gross_monthly_income"].values
+
+    max_allotment = np.array([SNAP_PARAMS["max_allotment"][h] for h in hh_size])
+    std_deduction = np.array([SNAP_PARAMS["standard_deduction"][h] for h in hh_size])
+    net_income = np.maximum(0, gross_monthly - std_deduction)
+    net_limit = np.array([SNAP_PARAMS["net_income_limit"][h] for h in hh_size])
+    is_eligible = net_income <= net_limit
+
+    reduction = net_income * SNAP_PARAMS["benefit_reduction_rate"] / 100
+    benefit = np.maximum(0, max_allotment - reduction)
+    min_benefit = np.where(hh_size <= 2, SNAP_PARAMS["min_benefit"], 0)
+    cosilico_snap = np.where(is_eligible, np.round(np.maximum(benefit, min_benefit)), 0).astype(int)
+
+    spm_df["cosilico_snap"] = cosilico_snap
+
+    # ==========================================================================
+    # RUN COSILICO ON TAX UNITS
+    # ==========================================================================
+    print("Running cosilico tax credits (vectorized)...")
+    cosilico_tu = run_cosilico_vectorized(tu_df)
+
+    # Merge tax unit results
+    tu_merged = tu_df.merge(cosilico_tu, on="household_id")
+
+    # Add SNAP columns as NaN (different entity level)
+    tu_merged["pe_snap"] = np.nan
+    tu_merged["cosilico_snap"] = np.nan
+
+    # ==========================================================================
+    # COMBINE RESULTS
+    # For comparison, we return tax unit data for EITC/CTC/ACTC
+    # and add a separate SNAP comparison summary
+    # ==========================================================================
+    print(f"\nTax unit dataset: {len(tu_merged):,} units")
+    print(f"SPM unit dataset: {len(spm_df):,} units")
+
+    # Store SPM results as attribute for separate SNAP validation
+    tu_merged.attrs["spm_snap_data"] = spm_df
+
+    return tu_merged
