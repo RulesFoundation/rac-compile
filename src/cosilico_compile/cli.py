@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from .js_generator import generate_eitc_calculator, JSCodeGenerator
+from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
 from .parser import parse_cos
 
 
@@ -54,6 +55,11 @@ def main():
         default=2025,
         help="Tax year (default: 2025)",
     )
+    eitc_parser.add_argument(
+        "--python",
+        action="store_true",
+        help="Generate Python code instead of JavaScript (default: JavaScript)",
+    )
 
     # Version
     parser.add_argument(
@@ -81,11 +87,16 @@ def main():
             print(code)
 
     elif args.command == "eitc":
-        code = generate_eitc_calculator(tax_year=args.year)
+        if hasattr(args, 'python') and args.python:
+            code = generate_eitc_calculator_py(tax_year=args.year)
+            lang = "Python"
+        else:
+            code = generate_eitc_calculator(tax_year=args.year)
+            lang = "JavaScript"
 
         if args.output:
             args.output.write_text(code)
-            print(f"Generated {args.output}", file=sys.stderr)
+            print(f"Generated {lang} EITC calculator -> {args.output}", file=sys.stderr)
         else:
             print(code)
 

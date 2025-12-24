@@ -1,10 +1,10 @@
 # cosilico-compile
 
-Compile Cosilico `.cos` files to standalone JavaScript calculators.
+Compile Cosilico `.cos` files to standalone JavaScript and Python calculators.
 
 ## Overview
 
-`cosilico-compile` generates JS code from Cosilico policy encodings that runs entirely in the browser - no server required. Every calculation includes a citation chain tracing values back to authoritative law.
+`cosilico-compile` generates JS and Python code from Cosilico policy encodings. JavaScript output runs entirely in the browser with no server required. Python output can be imported and used in any Python application. Every calculation includes a citation chain tracing values back to authoritative law.
 
 ## Installation
 
@@ -17,28 +17,48 @@ pip install cosilico-compile
 ### Command Line
 
 ```bash
-# Generate EITC calculator
+# Generate JavaScript EITC calculator
 cosilico-compile eitc -o eitc.js
 
+# Generate Python EITC calculator
+cosilico-compile eitc --python -o eitc.py
+
 # Output to stdout
-cosilico-compile eitc
+cosilico-compile eitc           # JavaScript
+cosilico-compile eitc --python  # Python
 ```
 
 ### Python API
 
 ```python
-from cosilico_compile import JSCodeGenerator, generate_eitc_calculator
+from cosilico_compile import (
+    JSCodeGenerator,
+    PythonCodeGenerator,
+    generate_eitc_calculator_js,
+    generate_eitc_calculator_py,
+)
 
-# Pre-built EITC calculator
-code = generate_eitc_calculator()
-print(code)
+# Pre-built EITC calculator (JavaScript)
+js_code = generate_eitc_calculator_js()
+print(js_code)
 
-# Custom calculator
-gen = JSCodeGenerator(module_name="My Calculator")
-gen.add_input("income", 0, "number")
-gen.add_parameter("rate", {0: 20, 1: 30}, "26 USC 1")
-gen.add_variable("tax", ["income"], "income * PARAMS.rate[0] / 100", citation="26 USC 1(a)")
-code = gen.generate()
+# Pre-built EITC calculator (Python)
+py_code = generate_eitc_calculator_py()
+print(py_code)
+
+# Custom JavaScript calculator
+js_gen = JSCodeGenerator(module_name="My Calculator")
+js_gen.add_input("income", 0, "number")
+js_gen.add_parameter("rate", {0: 20, 1: 30}, "26 USC 1")
+js_gen.add_variable("tax", ["income"], "income * PARAMS.rate[0] / 100", citation="26 USC 1(a)")
+js_code = js_gen.generate()
+
+# Custom Python calculator
+py_gen = PythonCodeGenerator(module_name="My Calculator")
+py_gen.add_input("income", 0, "float")
+py_gen.add_parameter("rate", {0: 20, 1: 30}, "26 USC 1")
+py_gen.add_variable("tax", ["income"], "income * PARAMS['rate'][0] / 100", citation="26 USC 1(a)")
+py_code = py_gen.generate()
 ```
 
 ### Generated Output
@@ -67,10 +87,11 @@ export default calculate;
 
 ## Features
 
+- **Multi-target compilation**: Generate JavaScript or Python from the same DSL
 - **Citation chains**: Every calculation traces back to statute/guidance
-- **Zero dependencies**: Generated JS runs standalone in any browser
-- **ESM exports**: Works with modern bundlers and `<script type="module">`
-- **TypeScript support**: Optional `.ts` output with full type annotations
+- **Zero dependencies**: Generated code runs standalone (JS in browsers, Python anywhere)
+- **ESM exports**: JavaScript works with modern bundlers and `<script type="module">`
+- **Type hints**: Python output includes full type annotations, TypeScript support coming soon
 
 ## Development
 
