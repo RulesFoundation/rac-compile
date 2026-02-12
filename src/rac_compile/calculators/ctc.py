@@ -109,7 +109,9 @@ def calculate_actc(
     # 24(d): Refundable portion (ACTC)
     # 15% of earned income above $2,500, up to $1,700 per child
     earned_above_threshold = max(0, earned_income - CTC_PARAMS["refundable_threshold"])
-    refundable_by_earnings = earned_above_threshold * CTC_PARAMS["refundable_rate"] / 100
+    refundable_by_earnings = (
+        earned_above_threshold * CTC_PARAMS["refundable_rate"] / 100
+    )
     max_refundable = n_qualifying_children * CTC_PARAMS["refundable_max"]
 
     # ACTC is the lesser of: refundable calc or max refundable

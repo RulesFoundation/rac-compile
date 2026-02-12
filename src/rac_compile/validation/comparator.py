@@ -5,11 +5,12 @@ Generates detailed comparison reports with tolerance-based matching,
 following the policyengine-taxsim pattern.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from pathlib import Path
-import pandas as pd
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -18,7 +19,7 @@ class ComparisonConfig:
 
     # Tolerances (absolute, in dollars or benefit units)
     eitc_tolerance: float = 1.0  # $1 for EITC
-    ctc_tolerance: float = 1.0   # $1 for CTC
+    ctc_tolerance: float = 1.0  # $1 for CTC
     actc_tolerance: float = 1.0  # $1 for ACTC
     snap_tolerance: float = 50.0  # $50 for SNAP (more deductions we don't model)
 
@@ -80,27 +81,36 @@ class ComparisonResults:
         for var in self.variables_compared:
             total_compared = self.matches[var] + len(self.mismatches[var])
             if total_compared == 0:
-                lines.extend([
-                    f"{var.upper()} Comparison:",
-                    "-" * 40,
-                    "  Skipped (no valid data for comparison)",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"{var.upper()} Comparison:",
+                        "-" * 40,
+                        "  Skipped (no valid data for comparison)",
+                        "",
+                    ]
+                )
                 continue
 
             tol = getattr(self.config, f"{var}_tolerance")
-            lines.extend([
-                f"{var.upper()} Comparison:",
-                "-" * 40,
-                f"  Matches:     {self.matches[var]:,} ({self.match_rates[var]:.2f}%)",
-                f"  Mismatches:  {len(self.mismatches[var]):,}",
-                f"  Tolerance:   ±${tol:.0f}",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"{var.upper()} Comparison:",
+                    "-" * 40,
+                    f"  Matches:     {self.matches[var]:,}"
+                    f" ({self.match_rates[var]:.2f}%)",
+                    f"  Mismatches:  {len(self.mismatches[var]):,}",
+                    f"  Tolerance:   ±${tol:.0f}",
+                    "",
+                ]
+            )
 
             # Show worst mismatches
             if self.mismatches[var]:
-                worst = sorted(self.mismatches[var], key=lambda m: abs(m.difference), reverse=True)[:5]
+                worst = sorted(
+                    self.mismatches[var],
+                    key=lambda m: abs(m.difference),
+                    reverse=True,
+                )[:5]
                 lines.append("  Worst mismatches:")
                 for m in worst:
                     lines.append(
@@ -131,18 +141,20 @@ class ComparisonResults:
         # Save mismatches per variable
         for var in self.variables_compared:
             if self.mismatches[var]:
-                mismatch_df = pd.DataFrame([
-                    {
-                        "household_id": m.household_id,
-                        "rac_value": m.rac_value,
-                        "policyengine_value": m.policyengine_value,
-                        "difference": m.difference,
-                        "pct_difference": m.pct_difference,
-                        "state_code": m.state_code,
-                        "weight": m.weight,
-                    }
-                    for m in self.mismatches[var]
-                ])
+                mismatch_df = pd.DataFrame(
+                    [
+                        {
+                            "household_id": m.household_id,
+                            "rac_value": m.rac_value,
+                            "policyengine_value": m.policyengine_value,
+                            "difference": m.difference,
+                            "pct_difference": m.pct_difference,
+                            "state_code": m.state_code,
+                            "weight": m.weight,
+                        }
+                        for m in self.mismatches[var]
+                    ]
+                )
                 mismatch_path = output_dir / f"{var}_mismatches.csv"
                 mismatch_df.to_csv(mismatch_path, index=False)
                 print(f"Saved {var} mismatches to: {mismatch_path}")
@@ -193,19 +205,27 @@ class Comparator:
             matches[var_name] = var_matches
             mismatches[var_name] = var_mismatches
             valid_count = var_matches + len(var_mismatches)
-            match_rates[var_name] = (var_matches / valid_count * 100) if valid_count > 0 else 0
+            match_rates[var_name] = (
+                (var_matches / valid_count * 100) if valid_count > 0 else 0
+            )
 
         # Compare SNAP at SPM unit level if available
         spm_df = df.attrs.get("spm_snap_data")
         if spm_df is not None and len(spm_df) > 0:
             snap_matches, snap_mismatches = self._compare_variable(
-                spm_df, "snap", "rac_snap", "pe_snap", self.config.snap_tolerance,
-                id_col="spm_unit_id"  # SPM uses different ID column
+                spm_df,
+                "snap",
+                "rac_snap",
+                "pe_snap",
+                self.config.snap_tolerance,
+                id_col="spm_unit_id",  # SPM uses different ID column
             )
             matches["snap"] = snap_matches
             mismatches["snap"] = snap_mismatches
             snap_valid = snap_matches + len(snap_mismatches)
-            match_rates["snap"] = (snap_matches / snap_valid * 100) if snap_valid > 0 else 0
+            match_rates["snap"] = (
+                (snap_matches / snap_valid * 100) if snap_valid > 0 else 0
+            )
         else:
             # No SPM data available
             matches["snap"] = 0
@@ -265,16 +285,18 @@ class Comparator:
             if pe_val != 0:
                 pct_diff = (diff / pe_val) * 100
 
-            mismatches.append(MismatchRecord(
-                household_id=row[id_col],
-                variable=var_name,
-                rac_value=cos_val,
-                policyengine_value=pe_val,
-                difference=diff,
-                pct_difference=pct_diff,
-                state_code=row.get("state_code"),
-                weight=row.get("weight", 1.0),
-            ))
+            mismatches.append(
+                MismatchRecord(
+                    household_id=row[id_col],
+                    variable=var_name,
+                    rac_value=cos_val,
+                    policyengine_value=pe_val,
+                    difference=diff,
+                    pct_difference=pct_diff,
+                    state_code=row.get("state_code"),
+                    weight=row.get("weight", 1.0),
+                )
+            )
 
         return match_count, mismatches
 

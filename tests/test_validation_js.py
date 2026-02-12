@@ -17,13 +17,13 @@ from pathlib import Path
 
 import pytest
 
-from src.rac_compile.parser import parse_cos
 from src.rac_compile.calculators import (
-    calculate_eitc,
-    calculate_ctc,
     calculate_actc,
+    calculate_ctc,
+    calculate_eitc,
     calculate_snap_benefit,
 )
+from src.rac_compile.parser import parse_cos
 
 
 def run_js_calculator(js_code: str, inputs: dict) -> dict:
@@ -204,9 +204,7 @@ class TestSNAPJSvsPython:
     ]
 
     @pytest.mark.parametrize("household_size,gross_income", CASES)
-    def test_snap_js_matches_python(
-        self, snap_js_code, household_size, gross_income
-    ):
+    def test_snap_js_matches_python(self, snap_js_code, household_size, gross_income):
         """JS SNAP calculation matches Python implementation."""
         # Python calculation
         py_result = calculate_snap_benefit(
@@ -224,8 +222,10 @@ class TestSNAPJSvsPython:
         )
 
         assert js_result["snap_benefit"] == py_result.benefit, (
-            f"SNAP mismatch: JS={js_result['snap_benefit']}, Python={py_result.benefit} "
-            f"for household_size={household_size}, gross_income={gross_income}"
+            f"SNAP mismatch: JS={js_result['snap_benefit']},"
+            f" Python={py_result.benefit} "
+            f"for household_size={household_size},"
+            f" gross_income={gross_income}"
         )
 
 

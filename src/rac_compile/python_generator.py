@@ -118,9 +118,11 @@ class PythonCodeGenerator:
             lines.append("# Parameters from statute and guidance")
             lines.append("PARAMS = {")
             for param in self.parameters.values():
-                values_str = "{" + ", ".join(
-                    f"{k}: {v}" for k, v in sorted(param.values.items())
-                ) + "}"
+                values_str = (
+                    "{"
+                    + ", ".join(f"{k}: {v}" for k, v in sorted(param.values.items()))
+                    + "}"
+                )
                 comment = f"  # {param.source}" if param.source else ""
                 lines.append(f'    "{param.name}": {values_str},{comment}')
             lines.append("}")
@@ -171,7 +173,7 @@ class PythonCodeGenerator:
         lines.append("    Calculate tax/benefit values with full citation chain.")
         lines.append("")
         for name, info in self.inputs.items():
-            lines.append(f"    Args:")
+            lines.append("    Args:")
             break
         for name, info in self.inputs.items():
             lines.append(f"        {name}: {info['type']}")
@@ -195,12 +197,14 @@ class PythonCodeGenerator:
         for param in self.parameters.values():
             if param.source:
                 lines.append(
-                    f'            {{"param": "{param.name}", "source": "{param.source}"}},'
+                    f'            {{"param": "{param.name}",'
+                    f' "source": "{param.source}"}},'
                 )
         for var in self.variables:
             if var.citation:
                 lines.append(
-                    f'            {{"variable": "{var.name}", "source": "{var.citation}"}},'
+                    f'            {{"variable": "{var.name}",'
+                    f' "source": "{var.citation}"}},'
                 )
         lines.append("        ],")
         lines.append("    }")
@@ -250,31 +254,17 @@ def generate_eitc_calculator(tax_year: int = 2025) -> str:
     )
 
     # EITC formula - follows 26 USC 32(a)
-    eitc_formula = """min(n_children, 3) and (
-        lambda n: (
-            lambda credit_pct, phaseout_pct, earned_amount, phaseout_start: (
-                lambda credit_base: (
-                    lambda income_for_phaseout: (
-                        lambda excess: (
-                            lambda phaseout: max(0, round(credit_base - phaseout))
-                        )(phaseout_pct * excess)
-                    )(max(0, income_for_phaseout - phaseout_start))
-                )(max(agi, earned_income))
-            )(credit_pct * min(earned_income, earned_amount))
-        )(
-            PARAMS['credit_pct'][n] / 100,
-            PARAMS['phaseout_pct'][n] / 100,
-            PARAMS['earned_income_amount'][n],
-            PARAMS['phaseout_joint'][n] if is_joint else PARAMS['phaseout_single'][n]
-        )
-    )(min(n_children, 3))"""
 
     # Simpler, more readable version
     eitc_formula_simple = """(lambda n: (
     lambda credit_base, income_for_phaseout, phaseout_start, phaseout_pct:
-        max(0, round(credit_base - phaseout_pct * max(0, income_for_phaseout - phaseout_start)))
+        max(0, round(
+            credit_base - phaseout_pct
+            * max(0, income_for_phaseout - phaseout_start)
+        ))
     )(
-        PARAMS['credit_pct'][n] / 100 * min(earned_income, PARAMS['earned_income_amount'][n]),
+        PARAMS['credit_pct'][n] / 100
+        * min(earned_income, PARAMS['earned_income_amount'][n]),
         max(agi, earned_income),
         PARAMS['phaseout_joint'][n] if is_joint else PARAMS['phaseout_single'][n],
         PARAMS['phaseout_pct'][n] / 100

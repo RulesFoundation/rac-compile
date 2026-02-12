@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rac-compile"
-version = "0.1.0"
-description = "Compile RAC .cos files to standalone JavaScript calculators"
+version = "0.2.0"
+description = "Compile RAC .rac/.cos files to standalone JavaScript and Python calculators"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"

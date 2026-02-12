@@ -8,9 +8,9 @@ on CPS microdata, not via hand-built test cases. See:
 """
 
 from src.rac_compile.calculators import (
-    calculate_eitc,
-    calculate_ctc,
     calculate_actc,
+    calculate_ctc,
+    calculate_eitc,
     calculate_snap_benefit,
 )
 

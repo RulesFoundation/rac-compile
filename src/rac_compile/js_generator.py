@@ -5,7 +5,7 @@ Generates standalone JS calculators that can run in browsers
 without any backend - perfect for static sites like rules.foundation/demo.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -166,10 +166,14 @@ class JSCodeGenerator:
         lines.append("    citations: [")
         for param in self.parameters.values():
             if param.source:
-                lines.append(f'      {{ param: "{param.name}", source: "{param.source}" }},')
+                lines.append(
+                    f'      {{ param: "{param.name}", source: "{param.source}" }},'
+                )
         for var in self.variables:
             if var.citation:
-                lines.append(f'      {{ variable: "{var.name}", source: "{var.citation}" }},')
+                lines.append(
+                    f'      {{ variable: "{var.name}", source: "{var.citation}" }},'
+                )
         lines.append("    ],")
         lines.append("  };")
         lines.append("}")
@@ -187,12 +191,15 @@ class JSCodeGenerator:
         lines.append("interface CalculatorResult {")
         for var in self.variables:
             lines.append(f"  {var.name}: number;")
-        lines.append("  citations: Array<{param?: string; variable?: string; source: string}>;")
+        citations_type = "Array<{param?: string; variable?: string; source: string}>"
+        lines.append(f"  citations: {citations_type};")
         lines.append("}")
         lines.append("")
 
         # Function
-        lines.append("function calculate(inputs: CalculatorInputs = {}): CalculatorResult {")
+        lines.append(
+            "function calculate(inputs: CalculatorInputs = {}): CalculatorResult {"
+        )
 
         # Destructure with defaults
         destructure = ", ".join(
@@ -215,10 +222,14 @@ class JSCodeGenerator:
         lines.append("    citations: [")
         for param in self.parameters.values():
             if param.source:
-                lines.append(f'      {{ param: "{param.name}", source: "{param.source}" }},')
+                lines.append(
+                    f'      {{ param: "{param.name}", source: "{param.source}" }},'
+                )
         for var in self.variables:
             if var.citation:
-                lines.append(f'      {{ variable: "{var.name}", source: "{var.citation}" }},')
+                lines.append(
+                    f'      {{ variable: "{var.name}", source: "{var.citation}" }},'
+                )
         lines.append("    ],")
         lines.append("  };")
         lines.append("}")

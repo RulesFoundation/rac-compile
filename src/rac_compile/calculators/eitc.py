@@ -8,7 +8,6 @@ This matches the logic in examples/eitc.cos exactly.
 """
 
 from dataclasses import dataclass
-from typing import Dict
 
 # Parameters from statute and guidance
 EITC_PARAMS = {

@@ -31,7 +31,7 @@ class TestCLI:
         """--version shows version."""
         result = run_cli("--version")
         assert result.returncode == 0
-        assert "0.1.0" in result.stdout
+        assert "0.2.0" in result.stdout
 
     def test_eitc_to_stdout(self):
         """eitc command outputs JS to stdout."""
