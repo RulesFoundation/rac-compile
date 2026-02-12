@@ -2,6 +2,7 @@
 Command-line interface for rac-compile.
 
 Usage:
+    rac-compile compile input.rac -o output.js
     rac-compile compile input.cos -o output.js
     rac-compile eitc -o eitc.js
 """
@@ -12,26 +13,26 @@ from pathlib import Path
 
 from .js_generator import generate_eitc_calculator, JSCodeGenerator
 from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
-from .parser import parse_cos
+from .parser import parse_rac
 
 
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         prog="rac-compile",
-        description="Compile RAC .cos files to standalone JavaScript",
+        description="Compile RAC .rac/.cos files to standalone JavaScript or Python",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Compile command
     compile_parser = subparsers.add_parser(
         "compile",
-        help="Compile a .cos file to JavaScript",
+        help="Compile a .rac or .cos file to JavaScript",
     )
     compile_parser.add_argument(
         "input",
         type=Path,
-        help="Input .cos file",
+        help="Input .rac or .cos file",
     )
     compile_parser.add_argument(
         "-o", "--output",
@@ -65,7 +66,7 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.1.0",
+        version="%(prog)s 0.2.0",
     )
 
     args = parser.parse_args()
@@ -76,8 +77,8 @@ def main():
             sys.exit(1)
 
         content = args.input.read_text()
-        cos_file = parse_cos(content)
-        gen = cos_file.to_js_generator()
+        rac_file = parse_rac(content)
+        gen = rac_file.to_js_generator()
         code = gen.generate()
 
         if args.output:

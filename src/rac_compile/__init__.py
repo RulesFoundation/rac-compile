@@ -1,7 +1,7 @@
 """
 rac-compile: Compile RAC DSL to standalone JavaScript and Python.
 
-This module generates JS and Python code from .cos files for use in browsers,
+This module generates JS and Python code from .rac/.cos files for use in browsers,
 Node.js, and Python applications without any dependencies.
 """
 
@@ -9,13 +9,22 @@ from .js_generator import JSCodeGenerator
 from .js_generator import Parameter as JSParameter
 from .js_generator import Variable as JSVariable
 from .js_generator import generate_eitc_calculator as generate_eitc_calculator_js
-from .parser import CosFile, ParameterDef, SourceBlock, VariableBlock, parse_cos
+from .parser import (
+    CosFile,
+    ParameterDef,
+    RacFile,
+    SourceBlock,
+    TemporalEntry,
+    VariableBlock,
+    parse_cos,
+    parse_rac,
+)
 from .python_generator import PythonCodeGenerator
 from .python_generator import Parameter as PythonParameter
 from .python_generator import Variable as PythonVariable
 from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "JSCodeGenerator",
     "PythonCodeGenerator",
@@ -26,8 +35,11 @@ __all__ = [
     "PythonParameter",
     "PythonVariable",
     "parse_cos",
+    "parse_rac",
     "CosFile",
+    "RacFile",
     "SourceBlock",
     "VariableBlock",
     "ParameterDef",
+    "TemporalEntry",
 ]

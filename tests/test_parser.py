@@ -1,14 +1,28 @@
 """
-Tests for .cos DSL parser.
+Tests for RAC DSL parser.
 
 TDD: Tests define the DSL syntax we want to support.
+Covers both legacy .cos syntax and unified .rac syntax.
 """
 
 import subprocess
 from pathlib import Path
 
 import pytest
-from src.rac_compile.parser import parse_cos, CosFile, SourceBlock, VariableBlock
+from src.rac_compile.parser import (
+    parse_cos,
+    parse_rac,
+    CosFile,
+    RacFile,
+    SourceBlock,
+    VariableBlock,
+    TemporalEntry,
+)
+
+
+# ============================================================
+# Legacy .cos syntax tests (backward compatibility)
+# ============================================================
 
 
 class TestParseSource:
@@ -463,3 +477,291 @@ class TestExampleFiles:
             text=True,
         )
         assert proc.returncode == 0, f"JS syntax error: {proc.stderr}"
+
+
+# ============================================================
+# Unified .rac syntax tests
+# ============================================================
+
+
+class TestUnifiedStatuteText:
+    """Tests for top-level triple-quoted statute text."""
+
+    def test_parse_statute_text(self):
+        """Can parse top-level triple-quoted statute text."""
+        rac = '''
+"""
+In the case of an individual, there shall be imposed
+a tax equal to 3.8 percent of the lesser of net investment
+income or excess MAGI over the threshold amount.
+"""
+'''
+        result = parse_rac(rac)
+        assert result.statute_text is not None
+        assert "3.8 percent" in result.statute_text
+        assert "net investment" in result.statute_text
+
+    def test_statute_text_optional(self):
+        """Statute text is optional."""
+        rac = """
+rate:
+  from 2024-01-01: 0.30
+"""
+        result = parse_rac(rac)
+        assert result.statute_text is None
+
+
+class TestUnifiedParameterDef:
+    """Tests for unified parameter definitions (name: with from dates)."""
+
+    def test_parse_scalar_parameter(self):
+        """Can parse parameter with scalar temporal values."""
+        rac = """
+niit_rate:
+  source: "26 USC 1411"
+  from 2013-01-01: 0.038
+"""
+        result = parse_rac(rac)
+        assert "niit_rate" in result.parameters
+        param = result.parameters["niit_rate"]
+        assert param.source == "26 USC 1411"
+        assert len(param.temporal) == 1
+        assert param.temporal[0].from_date == "2013-01-01"
+        assert param.temporal[0].value == 0.038
+
+    def test_parse_multiple_temporal_values(self):
+        """Can parse parameter with multiple temporal entries."""
+        rac = """
+threshold:
+  source: "Rev. Proc. 2024-40"
+  from 2024-01-01: 250000
+  from 2023-01-01: 220000
+  from 2022-01-01: 200000
+"""
+        result = parse_rac(rac)
+        assert "threshold" in result.parameters
+        param = result.parameters["threshold"]
+        assert len(param.temporal) == 3
+        assert param.temporal[0].value == 250000
+        assert param.temporal[1].value == 220000
+        assert param.temporal[2].value == 200000
+
+    def test_parameter_values_in_values_dict(self):
+        """Temporal scalar values are also stored in the values dict."""
+        rac = """
+rate:
+  from 2024-01-01: 7.65
+  from 2023-01-01: 7.65
+"""
+        result = parse_rac(rac)
+        param = result.parameters["rate"]
+        assert param.values == {0: 7.65, 1: 7.65}
+
+    def test_parameter_with_description(self):
+        """Can parse parameter with description attribute."""
+        rac = """
+contribution_rate:
+  description: "Household contribution as share of net income"
+  unit: rate
+  source: "USDA FNS"
+  from 2024-01-01: 0.30
+"""
+        result = parse_rac(rac)
+        param = result.parameters["contribution_rate"]
+        assert param.description == "Household contribution as share of net income"
+        assert param.unit == "rate"
+        assert param.source == "USDA FNS"
+
+
+class TestUnifiedVariableDef:
+    """Tests for unified variable definitions (name: with entity/period/dtype)."""
+
+    def test_parse_variable_with_temporal_formula(self):
+        """Can parse variable with formula under from-date."""
+        rac = """
+niit:
+  entity: TaxUnit
+  period: Year
+  dtype: Money
+  from 2013-01-01:
+    magi = agi + foreign_earned_income_exclusion
+    threshold = 200000
+    excess = max(0, magi - threshold)
+    return min(net_investment_income, excess) * 0.038
+"""
+        result = parse_rac(rac)
+        assert len(result.variables) == 1
+        var = result.variables[0]
+        assert var.name == "niit"
+        assert var.entity == "TaxUnit"
+        assert var.period == "Year"
+        assert var.dtype == "Money"
+        assert "0.038" in var.formula
+        assert "max(0, magi - threshold)" in var.formula
+
+    def test_variable_type_inference(self):
+        """Definitions with entity/period/dtype are variables, others are parameters."""
+        rac = """
+rate:
+  from 2024-01-01: 0.038
+
+tax:
+  entity: TaxUnit
+  period: Year
+  dtype: Money
+  from 2024-01-01:
+    return income * 0.038
+"""
+        result = parse_rac(rac)
+        assert "rate" in result.parameters
+        assert len(result.variables) == 1
+        assert result.variables[0].name == "tax"
+
+    def test_variable_with_label(self):
+        """Can parse variable with label attribute."""
+        rac = """
+eitc:
+  entity: TaxUnit
+  period: Year
+  dtype: Money
+  label: "Earned Income Tax Credit"
+  from 2025-01-01:
+    return max(0, earned_income * 0.34)
+"""
+        result = parse_rac(rac)
+        var = result.variables[0]
+        assert var.label == "Earned Income Tax Credit"
+
+    def test_variable_with_multiple_temporal_formulas(self):
+        """Can parse variable with different formulas for different dates."""
+        rac = """
+credit:
+  entity: TaxUnit
+  period: Year
+  dtype: Money
+  from 2026-01-01:
+    return income * 0.10
+  from 2018-01-01:
+    return income * 0.15
+"""
+        result = parse_rac(rac)
+        var = result.variables[0]
+        assert len(var.temporal) == 2
+        assert var.temporal[0].from_date == "2026-01-01"
+        assert var.temporal[1].from_date == "2018-01-01"
+        # Most recent temporal entry becomes the formula
+        assert "0.10" in var.formula
+
+
+class TestUnifiedMixedFile:
+    """Tests for complete files using unified syntax."""
+
+    def test_parse_complete_unified_file(self):
+        """Can parse a complete file with unified syntax."""
+        rac = '''
+# 26 USC 1411 - Net Investment Income Tax
+
+"""
+In the case of an individual, there shall be imposed
+a tax equal to 3.8 percent of the lesser of NII or excess MAGI.
+"""
+
+niit_rate:
+  source: "26 USC 1411(a)"
+  from 2013-01-01: 0.038
+
+threshold_joint:
+  source: "26 USC 1411(b)"
+  from 2013-01-01: 250000
+
+niit:
+  entity: TaxUnit
+  period: Year
+  dtype: Money
+  label: "Net Investment Income Tax"
+  from 2013-01-01:
+    excess = max(0, agi - 250000)
+    return min(net_investment_income, excess) * 0.038
+'''
+        result = parse_rac(rac)
+        assert result.statute_text is not None
+        assert "3.8 percent" in result.statute_text
+        assert "niit_rate" in result.parameters
+        assert "threshold_joint" in result.parameters
+        assert len(result.variables) == 1
+        assert result.variables[0].name == "niit"
+
+    def test_unified_file_compiles_to_js(self):
+        """Unified syntax file can be compiled to JS."""
+        rac = """
+rate:
+  source: "Test"
+  from 2024-01-01: 20
+
+tax:
+  entity: Person
+  period: Year
+  dtype: Money
+  from 2024-01-01:
+    return income * 0.2
+"""
+        result = parse_rac(rac)
+        gen = result.to_js_generator()
+        code = gen.generate()
+        assert "function calculate(" in code
+        assert "PARAMS" in code
+
+
+class TestUnifiedExampleFiles:
+    """Tests for example .rac files in unified syntax."""
+
+    def test_eitc_unified_example_parses(self):
+        """examples/eitc.rac parses correctly with unified syntax."""
+        eitc_path = Path(__file__).parent.parent / "examples" / "eitc.rac"
+        if not eitc_path.exists():
+            pytest.skip("examples/eitc.rac not found")
+
+        content = eitc_path.read_text()
+        result = parse_rac(content)
+
+        assert len(result.parameters) >= 1
+        assert len(result.variables) >= 1
+
+
+class TestBackwardCompatibility:
+    """Ensure parse_rac handles legacy .cos syntax too."""
+
+    def test_parse_rac_handles_legacy_cos(self):
+        """parse_rac can parse legacy .cos format."""
+        cos = """
+source {
+  citation: "26 USC 32"
+  accessed: 2025-01-01
+}
+
+parameter rate {
+  source: "Test"
+  values {
+    0: 10
+    1: 20
+  }
+}
+
+variable tax {
+  entity Person
+  period Year
+  dtype Money
+  formula {
+    return income * rate[0] / 100
+  }
+}
+"""
+        result = parse_rac(cos)
+        assert result.source.citation == "26 USC 32"
+        assert result.parameters["rate"].values == {0: 10.0, 1: 20.0}
+        assert len(result.variables) == 1
+        assert result.variables[0].entity == "Person"
+
+    def test_cosfile_alias(self):
+        """CosFile is an alias for RacFile."""
+        assert CosFile is RacFile
