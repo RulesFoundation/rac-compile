@@ -596,8 +596,8 @@ niit:
         assert var.entity == "TaxUnit"
         assert var.period == "Year"
         assert var.dtype == "Money"
-        assert "0.038" in var.formula
-        assert "max(0, magi - threshold)" in var.formula
+        assert "0.038" in var.effective_formula
+        assert "max(0, magi - threshold)" in var.effective_formula
 
     def test_variable_type_inference(self):
         """Definitions with entity/period/dtype are variables, others are parameters."""
@@ -649,8 +649,7 @@ credit:
         assert len(var.temporal) == 2
         assert var.temporal[0].from_date == "2026-01-01"
         assert var.temporal[1].from_date == "2018-01-01"
-        # Most recent temporal entry becomes the formula
-        assert "0.10" in var.formula
+        assert "0.10" in var.effective_formula
 
 
 class TestUnifiedMixedFile:
