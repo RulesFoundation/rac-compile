@@ -376,9 +376,7 @@ class TestCLIMainBlock:
 
         with patch("sys.argv", ["rac-compile", "eitc"]):
             with patch("builtins.print"):
-                runpy.run_module(
-                    "rac_compile.cli", run_name="__main__", alter_sys=True
-                )
+                runpy.run_module("rac_compile.cli", run_name="__main__", alter_sys=True)
 
 
 # ============================================================

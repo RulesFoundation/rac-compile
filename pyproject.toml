@@ -29,6 +29,8 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.1",
+    "numpy>=1.24",
+    "pandas>=1.5",
 ]
 # PolicyEngine for external validation (heavy dependency, optional)
 validation = [

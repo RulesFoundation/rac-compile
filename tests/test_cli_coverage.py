@@ -76,9 +76,7 @@ class TestCLIMainEitc:
     def test_eitc_js_to_file(self, tmp_path):
         """eitc command writes JS to file with -o."""
         output_file = tmp_path / "eitc.js"
-        with patch(
-            "sys.argv", ["rac-compile", "eitc", "-o", str(output_file)]
-        ):
+        with patch("sys.argv", ["rac-compile", "eitc", "-o", str(output_file)]):
             main()
             assert output_file.exists()
             content = output_file.read_text()

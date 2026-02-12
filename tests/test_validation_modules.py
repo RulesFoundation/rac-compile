@@ -422,12 +422,15 @@ class TestValidateFunction:
         results_df["pe_actc"] = [50, 100]
         results_df["state_code"] = ["CA", "NY"]
 
-        with patch(
-            "src.rac_compile.validation.cps_loader.load_cps_data",
-            return_value=mock_df,
-        ), patch(
-            "src.rac_compile.validation.runners.run_both",
-            return_value=results_df,
+        with (
+            patch(
+                "src.rac_compile.validation.cps_loader.load_cps_data",
+                return_value=mock_df,
+            ),
+            patch(
+                "src.rac_compile.validation.runners.run_both",
+                return_value=results_df,
+            ),
         ):
             results = validate(source="policyengine", year=2025, sample_size=2)
             assert results.total_households == 2
@@ -457,12 +460,15 @@ class TestValidateFunction:
         results_df["pe_actc"] = [50]
         results_df["state_code"] = ["CA"]
 
-        with patch(
-            "src.rac_compile.validation.cps_loader.load_cps_data",
-            return_value=mock_df,
-        ), patch(
-            "src.rac_compile.validation.runners.run_both",
-            return_value=results_df,
+        with (
+            patch(
+                "src.rac_compile.validation.cps_loader.load_cps_data",
+                return_value=mock_df,
+            ),
+            patch(
+                "src.rac_compile.validation.runners.run_both",
+                return_value=results_df,
+            ),
         ):
             output_dir = str(tmp_path / "results")
             validate(output_dir=output_dir)
@@ -1315,8 +1321,10 @@ class TestValidationCLI:
             main()
             mock_validate.assert_called_once()
             call_kwargs = mock_validate.call_args
-            assert call_kwargs[1]["csv_path"] == "data.csv" or \
-                call_kwargs.kwargs.get("csv_path") == "data.csv"
+            assert (
+                call_kwargs[1]["csv_path"] == "data.csv"
+                or call_kwargs.kwargs.get("csv_path") == "data.csv"
+            )
 
     @patch("src.rac_compile.validation.cli.validate_full")
     def test_tolerance_args_passed(self, mock_validate_full):
@@ -1394,8 +1402,10 @@ class TestValidationCLI:
         ):
             main()
             call_kwargs = mock_validate.call_args
-            assert call_kwargs[1].get("sample_size") == 50 or \
-                call_kwargs.kwargs.get("sample_size") == 50
+            assert (
+                call_kwargs[1].get("sample_size") == 50
+                or call_kwargs.kwargs.get("sample_size") == 50
+            )
 
     @patch("src.rac_compile.validation.cli.validate")
     def test_sample_mode_with_output_dir(self, mock_validate):
