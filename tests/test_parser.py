@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from src.cosilico_compile.parser import parse_cos, CosFile, SourceBlock, VariableBlock
+from src.rac_compile.parser import parse_cos, CosFile, SourceBlock, VariableBlock
 
 
 class TestParseSource:

@@ -1,8 +1,8 @@
 """
-JavaScript code generation from Cosilico DSL.
+JavaScript code generation from RAC DSL.
 
 Generates standalone JS calculators that can run in browsers
-without any backend - perfect for static sites like cosilico.ai/demo.
+without any backend - perfect for static sites like rules.foundation/demo.
 """
 
 from dataclasses import dataclass, field
@@ -31,7 +31,7 @@ class Variable:
 
 class JSCodeGenerator:
     """
-    Generate standalone JavaScript calculators from Cosilico DSL.
+    Generate standalone JavaScript calculators from RAC DSL.
 
     Usage:
         gen = JSCodeGenerator()
@@ -91,7 +91,7 @@ class JSCodeGenerator:
 
         # Header with provenance
         lines.append("/**")
-        lines.append(f" * {self.module_name} - Auto-generated from Cosilico DSL")
+        lines.append(f" * {self.module_name} - Auto-generated from RAC DSL")
         lines.append(" * ")
         lines.append(" * This code runs entirely in the browser with full citation")
         lines.append(" * chain - every value traces back to authoritative law.")

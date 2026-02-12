@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from src.cosilico_compile.parser import parse_cos
-from src.cosilico_compile.calculators import (
+from src.rac_compile.parser import parse_cos
+from src.rac_compile.calculators import (
     calculate_eitc,
     calculate_ctc,
     calculate_actc,

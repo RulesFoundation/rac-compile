@@ -1,5 +1,5 @@
 """
-Comparator: Compare cosilico results against PolicyEngine-US.
+Comparator: Compare RAC results against PolicyEngine-US.
 
 Generates detailed comparison reports with tolerance-based matching,
 following the policyengine-taxsim pattern.
@@ -32,7 +32,7 @@ class MismatchRecord:
 
     household_id: int
     variable: str
-    cosilico_value: float
+    rac_value: float
     policyengine_value: float
     difference: float
     pct_difference: Optional[float] = None
@@ -42,7 +42,7 @@ class MismatchRecord:
 
 @dataclass
 class ComparisonResults:
-    """Results from comparing cosilico vs PolicyEngine."""
+    """Results from comparing RAC vs PolicyEngine."""
 
     total_households: int
     variables_compared: List[str]
@@ -71,7 +71,7 @@ class ComparisonResults:
         """Generate detailed text report."""
         lines = [
             "=" * 70,
-            "Cosilico vs PolicyEngine-US Validation Report",
+            "RAC vs PolicyEngine-US Validation Report",
             "=" * 70,
             f"Total Households: {self.total_households:,}",
             "",
@@ -104,7 +104,7 @@ class ComparisonResults:
                 lines.append("  Worst mismatches:")
                 for m in worst:
                     lines.append(
-                        f"    HH {m.household_id}: cosilico=${m.cosilico_value:.0f}, "
+                        f"    HH {m.household_id}: rac=${m.rac_value:.0f}, "
                         f"PE=${m.policyengine_value:.0f}, diff=${m.difference:.0f}"
                     )
                 lines.append("")
@@ -134,7 +134,7 @@ class ComparisonResults:
                 mismatch_df = pd.DataFrame([
                     {
                         "household_id": m.household_id,
-                        "cosilico_value": m.cosilico_value,
+                        "rac_value": m.rac_value,
                         "policyengine_value": m.policyengine_value,
                         "difference": m.difference,
                         "pct_difference": m.pct_difference,
@@ -149,13 +149,13 @@ class ComparisonResults:
 
 
 class Comparator:
-    """Compare cosilico vs PolicyEngine results."""
+    """Compare RAC vs PolicyEngine results."""
 
     VARIABLES = [
-        ("eitc", "cosilico_eitc", "pe_eitc"),
-        ("ctc", "cosilico_ctc", "pe_ctc"),
-        ("actc", "cosilico_actc", "pe_actc"),
-        ("snap", "cosilico_snap", "pe_snap"),
+        ("eitc", "rac_eitc", "pe_eitc"),
+        ("ctc", "rac_ctc", "pe_ctc"),
+        ("actc", "rac_actc", "pe_actc"),
+        ("snap", "rac_snap", "pe_snap"),
     ]
 
     def __init__(self, config: Optional[ComparisonConfig] = None):
@@ -163,10 +163,10 @@ class Comparator:
 
     def compare(self, df: pd.DataFrame) -> ComparisonResults:
         """
-        Compare cosilico and PolicyEngine results.
+        Compare RAC and PolicyEngine results.
 
         Args:
-            df: DataFrame with both cosilico and PE results
+            df: DataFrame with both RAC and PE results
                 (output from runners.run_both)
                 May have attrs["spm_snap_data"] for SNAP comparison
 
@@ -199,7 +199,7 @@ class Comparator:
         spm_df = df.attrs.get("spm_snap_data")
         if spm_df is not None and len(spm_df) > 0:
             snap_matches, snap_mismatches = self._compare_variable(
-                spm_df, "snap", "cosilico_snap", "pe_snap", self.config.snap_tolerance,
+                spm_df, "snap", "rac_snap", "pe_snap", self.config.snap_tolerance,
                 id_col="spm_unit_id"  # SPM uses different ID column
             )
             matches["snap"] = snap_matches
@@ -268,7 +268,7 @@ class Comparator:
             mismatches.append(MismatchRecord(
                 household_id=row[id_col],
                 variable=var_name,
-                cosilico_value=cos_val,
+                rac_value=cos_val,
                 policyengine_value=pe_val,
                 difference=diff,
                 pct_difference=pct_diff,
