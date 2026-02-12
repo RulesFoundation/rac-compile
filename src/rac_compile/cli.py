@@ -1,9 +1,9 @@
 """
-Command-line interface for cosilico-compile.
+Command-line interface for rac-compile.
 
 Usage:
-    cosilico-compile compile input.cos -o output.js
-    cosilico-compile eitc -o eitc.js
+    rac-compile compile input.cos -o output.js
+    rac-compile eitc -o eitc.js
 """
 
 import argparse
@@ -18,8 +18,8 @@ from .parser import parse_cos
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        prog="cosilico-compile",
-        description="Compile Cosilico .cos files to standalone JavaScript",
+        prog="rac-compile",
+        description="Compile RAC .cos files to standalone JavaScript",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

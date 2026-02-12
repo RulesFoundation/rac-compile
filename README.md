@@ -1,37 +1,37 @@
-# cosilico-compile
+# rac-compile
 
-Compile Cosilico `.cos` files to standalone JavaScript and Python calculators.
+Compile RAC `.cos` files to standalone JavaScript and Python calculators.
 
 ## Overview
 
-`cosilico-compile` generates JS and Python code from Cosilico policy encodings. JavaScript output runs entirely in the browser with no server required. Python output can be imported and used in any Python application. Every calculation includes a citation chain tracing values back to authoritative law.
+`rac-compile` generates JS and Python code from RAC policy encodings. JavaScript output runs entirely in the browser with no server required. Python output can be imported and used in any Python application. Every calculation includes a citation chain tracing values back to authoritative law.
 
 ## Installation
 
 ```bash
-pip install cosilico-compile
+pip install rac-compile
 ```
 
-## Quick Start
+## Quick start
 
-### Command Line
+### Command line
 
 ```bash
 # Generate JavaScript EITC calculator
-cosilico-compile eitc -o eitc.js
+rac-compile eitc -o eitc.js
 
 # Generate Python EITC calculator
-cosilico-compile eitc --python -o eitc.py
+rac-compile eitc --python -o eitc.py
 
 # Output to stdout
-cosilico-compile eitc           # JavaScript
-cosilico-compile eitc --python  # Python
+rac-compile eitc           # JavaScript
+rac-compile eitc --python  # Python
 ```
 
 ### Python API
 
 ```python
-from cosilico_compile import (
+from rac_compile import (
     JSCodeGenerator,
     PythonCodeGenerator,
     generate_eitc_calculator_js,
@@ -61,7 +61,7 @@ py_gen.add_variable("tax", ["income"], "income * PARAMS['rate'][0] / 100", citat
 py_code = py_gen.generate()
 ```
 
-### Generated Output
+### Generated output
 
 ```javascript
 const PARAMS = {
@@ -103,10 +103,10 @@ pip install -e ".[dev]"
 pytest
 
 # Run with coverage
-pytest --cov=cosilico_compile
+pytest --cov=rac_compile
 ```
 
-## See Also
+## See also
 
-- [Cosilico](https://cosilico.ai) - Society, in silico
+- [Rules Foundation](https://rules.foundation) - Open infrastructure for encoded law
 - [pe-compile](https://github.com/PolicyEngine/pe-compile) - Similar tool for PolicyEngine

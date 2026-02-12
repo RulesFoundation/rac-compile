@@ -1,5 +1,5 @@
 """
-Tests for Python code generation from Cosilico DSL.
+Tests for Python code generation from RAC DSL.
 
 Following TDD: write tests first, then implement.
 """
@@ -12,7 +12,7 @@ class TestPythonCodeGenerator:
 
     def test_init_defaults(self):
         """Test generator initializes with sensible defaults."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         assert gen.module_name == "calculator"
@@ -24,7 +24,7 @@ class TestPythonCodeGenerator:
 
     def test_add_input_number(self):
         """Test adding numeric input."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_input("income", 0, "float")
@@ -34,7 +34,7 @@ class TestPythonCodeGenerator:
 
     def test_add_input_boolean(self):
         """Test adding boolean input."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_input("is_joint", False, "bool")
@@ -43,7 +43,7 @@ class TestPythonCodeGenerator:
 
     def test_add_parameter(self):
         """Test adding parameter with values."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_parameter("rate", {0: 10, 1: 20}, "26 USC 1")
@@ -53,7 +53,7 @@ class TestPythonCodeGenerator:
 
     def test_add_variable(self):
         """Test adding calculated variable."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_variable(
@@ -73,7 +73,7 @@ class TestGenerateOutput:
 
     def test_generate_includes_header(self):
         """Generated code has docstring header."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator(module_name="Test Calculator")
         gen.add_input("x", 0)
@@ -82,11 +82,11 @@ class TestGenerateOutput:
 
         assert '"""' in code
         assert "Test Calculator" in code
-        assert "Auto-generated from Cosilico DSL" in code
+        assert "Auto-generated from RAC DSL" in code
 
     def test_generate_includes_params_dict(self):
         """Generated code includes PARAMS dictionary."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_parameter("credit_pct", {0: 7.65, 1: 34}, "26 USC 32(b)(1)")
@@ -98,7 +98,7 @@ class TestGenerateOutput:
 
     def test_generate_includes_calculate_function(self):
         """Generated code includes calculate function."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_input("income", 0, "float")
@@ -111,7 +111,7 @@ class TestGenerateOutput:
 
     def test_generate_returns_citations(self):
         """Generated code returns citation chain."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_parameter("rate", {0: 20}, "26 USC 1")
@@ -125,7 +125,7 @@ class TestGenerateOutput:
 
     def test_generate_no_provenance(self):
         """Can generate without provenance comments."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator(include_provenance=False)
         gen.add_parameter("rate", {0: 20}, "26 USC 1")
@@ -135,7 +135,7 @@ class TestGenerateOutput:
 
     def test_generate_without_type_hints(self):
         """Can generate Python without type hints."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator(type_hints=False)
         gen.add_input("income", 0, "float")
@@ -151,7 +151,7 @@ class TestGenerateEITCCalculator:
 
     def test_returns_valid_python(self):
         """Generated EITC calculator is valid Python."""
-        from cosilico_compile.python_generator import generate_eitc_calculator
+        from src.rac_compile.python_generator import generate_eitc_calculator
 
         code = generate_eitc_calculator()
         assert code
@@ -160,7 +160,7 @@ class TestGenerateEITCCalculator:
 
     def test_includes_all_eitc_params(self):
         """EITC calculator includes all required parameters."""
-        from cosilico_compile.python_generator import generate_eitc_calculator
+        from src.rac_compile.python_generator import generate_eitc_calculator
 
         code = generate_eitc_calculator()
         assert "credit_pct" in code
@@ -171,7 +171,7 @@ class TestGenerateEITCCalculator:
 
     def test_includes_statute_citations(self):
         """EITC calculator includes 26 USC 32 citations."""
-        from cosilico_compile.python_generator import generate_eitc_calculator
+        from src.rac_compile.python_generator import generate_eitc_calculator
 
         code = generate_eitc_calculator()
         assert "26 USC 32" in code
@@ -179,7 +179,7 @@ class TestGenerateEITCCalculator:
 
     def test_includes_guidance_citations(self):
         """EITC calculator includes IRS guidance citations."""
-        from cosilico_compile.python_generator import generate_eitc_calculator
+        from src.rac_compile.python_generator import generate_eitc_calculator
 
         code = generate_eitc_calculator()
         assert "Rev. Proc. 2024-40" in code
@@ -190,7 +190,7 @@ class TestPythonExecution:
 
     def test_generated_code_is_executable(self):
         """Generated code can be executed."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         gen = PythonCodeGenerator()
         gen.add_input("x", 5, "int")
@@ -206,7 +206,7 @@ class TestPythonExecution:
 
     def test_eitc_calculator_execution(self):
         """EITC calculator executes and returns reasonable values."""
-        from cosilico_compile.python_generator import generate_eitc_calculator
+        from src.rac_compile.python_generator import generate_eitc_calculator
 
         code = generate_eitc_calculator()
         namespace = {}
@@ -228,8 +228,8 @@ class TestPythonVsJS:
 
     def test_simple_calculation_matches_js(self):
         """Python and JS generators produce equivalent results."""
-        from cosilico_compile.python_generator import PythonCodeGenerator
-        from cosilico_compile.js_generator import JSCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
+        from src.rac_compile.js_generator import JSCodeGenerator
 
         # Python version
         py_gen = PythonCodeGenerator()

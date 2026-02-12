@@ -1,7 +1,7 @@
 """
 Parser for .cos DSL files.
 
-Parses Cosilico policy encoding files into structured data
+Parses RAC policy encoding files into structured data
 that can be compiled to JavaScript.
 """
 

@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cosilico-compile"
+name = "rac-compile"
 version = "0.1.0"
-description = "Compile Cosilico .cos files to standalone JavaScript calculators"
+description = "Compile RAC .cos files to standalone JavaScript calculators"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [
-    { name = "Cosilico", email = "hello@cosilico.ai" },
+    { name = "Rules Foundation", email = "hello@rules.foundation" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -22,7 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-keywords = ["cosilico", "tax", "benefits", "policy", "compiler", "javascript"]
+keywords = ["rac", "rules-as-code", "tax", "benefits", "policy", "compiler", "javascript"]
 
 [project.optional-dependencies]
 dev = [
@@ -38,11 +38,11 @@ validation = [
 ]
 
 [project.scripts]
-cosilico-compile = "cosilico_compile.cli:main"
-cosilico-validate = "cosilico_compile.validation.cli:main"
+rac-compile = "rac_compile.cli:main"
+rac-validate = "rac_compile.validation.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cosilico_compile"]
+packages = ["src/rac_compile"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

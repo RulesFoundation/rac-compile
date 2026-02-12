@@ -1,11 +1,11 @@
 """
 Runners for validation: execute calculators on CPS microdata.
 
-Provides functions to run both cosilico calculators and PolicyEngine-US
+Provides functions to run both RAC calculators and PolicyEngine-US
 on the same household data for comparison.
 
 Two modes:
-1. Vectorized (fast): Use PE Microsimulation on full CPS, vectorized cosilico
+1. Vectorized (fast): Use PE Microsimulation on full CPS, vectorized RAC
 2. Individual (slow): Build individual situations for each household
 """
 
@@ -20,9 +20,9 @@ from ..calculators.ctc import CTC_PARAMS
 from ..calculators.snap import SNAP_PARAMS
 
 
-def run_cosilico(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
+def run_rac(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
     """
-    Run cosilico calculators on CPS household data.
+    Run RAC calculators on CPS household data.
 
     Args:
         df: DataFrame with household data (from load_cps_data)
@@ -32,7 +32,7 @@ def run_cosilico(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
         DataFrame with household_id and calculated values
     """
     results = []
-    iterator = tqdm(df.iterrows(), total=len(df), desc="Cosilico") if show_progress else df.iterrows()
+    iterator = tqdm(df.iterrows(), total=len(df), desc="RAC") if show_progress else df.iterrows()
 
     for _, row in iterator:
         # EITC
@@ -64,10 +64,10 @@ def run_cosilico(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
 
         results.append({
             "household_id": row["household_id"],
-            "cosilico_eitc": eitc_result.eitc,
-            "cosilico_ctc": ctc_result.ctc,
-            "cosilico_actc": actc_result.actc,
-            "cosilico_snap": snap_result.benefit,
+            "rac_eitc": eitc_result.eitc,
+            "rac_ctc": ctc_result.ctc,
+            "rac_actc": actc_result.actc,
+            "rac_snap": snap_result.benefit,
         })
 
     return pd.DataFrame(results)
@@ -191,7 +191,7 @@ def run_both(
     show_progress: bool = True,
 ) -> pd.DataFrame:
     """
-    Run both cosilico and PolicyEngine on the same data.
+    Run both RAC and PolicyEngine on the same data.
 
     Args:
         df: DataFrame with household data
@@ -201,11 +201,11 @@ def run_both(
     Returns:
         Merged DataFrame with both sets of results
     """
-    cosilico_results = run_cosilico(df, show_progress)
+    rac_results = run_rac(df, show_progress)
     pe_results = run_policyengine(df, year, show_progress)
 
     # Merge results
-    merged = df.merge(cosilico_results, on="household_id")
+    merged = df.merge(rac_results, on="household_id")
     merged = merged.merge(pe_results, on="household_id")
 
     return merged
@@ -216,9 +216,9 @@ def run_both(
 # =============================================================================
 
 
-def run_cosilico_vectorized(df: pd.DataFrame) -> pd.DataFrame:
+def run_rac_vectorized(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Run cosilico calculators vectorized on full DataFrame.
+    Run RAC calculators vectorized on full DataFrame.
 
     Much faster than row-by-row iteration.
     """
@@ -281,10 +281,10 @@ def run_cosilico_vectorized(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame({
         "household_id": df["household_id"],
-        "cosilico_eitc": eitc,
-        "cosilico_ctc": ctc,
-        "cosilico_actc": actc,
-        "cosilico_snap": snap,
+        "rac_eitc": eitc,
+        "rac_ctc": ctc,
+        "rac_actc": actc,
+        "rac_snap": snap,
     })
 
 
@@ -346,7 +346,7 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
     Run full CPS validation using vectorized operations.
 
     Extracts inputs and PE outputs from Microsimulation, then runs
-    cosilico on the same inputs for comparison.
+    RAC on the same inputs for comparison.
 
     Handles different entity levels:
     - Tax unit: EITC, CTC, ACTC
@@ -449,8 +449,8 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
 
     spm_df = pd.DataFrame(spm_records)
 
-    # Run cosilico SNAP on SPM units
-    print("\nRunning cosilico SNAP (vectorized)...")
+    # Run RAC SNAP on SPM units
+    print("\nRunning RAC SNAP (vectorized)...")
     hh_size = np.minimum(spm_df["household_size"].values, 8)
     gross_monthly = spm_df["gross_monthly_income"].values
 
@@ -463,22 +463,22 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
     reduction = net_income * SNAP_PARAMS["benefit_reduction_rate"] / 100
     benefit = np.maximum(0, max_allotment - reduction)
     min_benefit = np.where(hh_size <= 2, SNAP_PARAMS["min_benefit"], 0)
-    cosilico_snap = np.where(is_eligible, np.round(np.maximum(benefit, min_benefit)), 0).astype(int)
+    rac_snap = np.where(is_eligible, np.round(np.maximum(benefit, min_benefit)), 0).astype(int)
 
-    spm_df["cosilico_snap"] = cosilico_snap
+    spm_df["rac_snap"] = rac_snap
 
     # ==========================================================================
-    # RUN COSILICO ON TAX UNITS
+    # RUN RAC ON TAX UNITS
     # ==========================================================================
-    print("Running cosilico tax credits (vectorized)...")
-    cosilico_tu = run_cosilico_vectorized(tu_df)
+    print("Running RAC tax credits (vectorized)...")
+    rac_tu = run_rac_vectorized(tu_df)
 
     # Merge tax unit results
-    tu_merged = tu_df.merge(cosilico_tu, on="household_id")
+    tu_merged = tu_df.merge(rac_tu, on="household_id")
 
     # Add SNAP columns as NaN (different entity level)
     tu_merged["pe_snap"] = np.nan
-    tu_merged["cosilico_snap"] = np.nan
+    tu_merged["rac_snap"] = np.nan
 
     # ==========================================================================
     # COMBINE RESULTS

@@ -1,5 +1,5 @@
 """
-Python code generation from Cosilico DSL.
+Python code generation from RAC DSL.
 
 Generates standalone Python calculators that can be imported
 and used in Python applications without any dependencies.
@@ -31,7 +31,7 @@ class Variable:
 
 class PythonCodeGenerator:
     """
-    Generate standalone Python calculators from Cosilico DSL.
+    Generate standalone Python calculators from RAC DSL.
 
     Usage:
         gen = PythonCodeGenerator()
@@ -88,7 +88,7 @@ class PythonCodeGenerator:
 
         # Header with provenance
         lines.append('"""')
-        lines.append(f"{self.module_name} - Auto-generated from Cosilico DSL")
+        lines.append(f"{self.module_name} - Auto-generated from RAC DSL")
         lines.append("")
         lines.append("This code runs standalone with full citation chain -")
         lines.append("every value traces back to authoritative law.")

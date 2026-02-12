@@ -2,15 +2,15 @@
 CLI for running validation pipeline.
 
 Usage:
-    python -m cosilico_compile.validation.cli [options]
-    cosilico-validate [options]  # if installed
+    python -m rac_compile.validation.cli [options]
+    rac-validate [options]  # if installed
 
 Examples:
     # Full CPS validation (vectorized, fast)
-    cosilico-validate --mode full
+    rac-validate --mode full
 
     # Sample validation from CSV (slower per-household)
-    cosilico-validate --mode sample --source csv --csv-path data.csv --sample-size 100
+    rac-validate --mode sample --source csv --csv-path data.csv --sample-size 100
 """
 
 import argparse
@@ -22,7 +22,7 @@ from .comparator import validate, validate_full, ComparisonConfig
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validate cosilico calculators against PolicyEngine-US on CPS microdata"
+        description="Validate RAC calculators against PolicyEngine-US on CPS microdata"
     )
 
     parser.add_argument(

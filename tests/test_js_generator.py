@@ -1,11 +1,11 @@
 """
-Tests for cosilico-compile JS code generator.
+Tests for rac-compile JS code generator.
 
 TDD: Tests written first, implementation follows.
 """
 
 import pytest
-from src.cosilico_compile.js_generator import (
+from src.rac_compile.js_generator import (
     JSCodeGenerator,
     generate_eitc_calculator,
     Parameter,
@@ -78,7 +78,7 @@ class TestGenerateOutput:
         gen = JSCodeGenerator(module_name="Test Calculator")
         code = gen.generate()
         assert "Test Calculator" in code
-        assert "Auto-generated from Cosilico DSL" in code
+        assert "Auto-generated from RAC DSL" in code
 
     def test_generate_includes_params_object(self):
         """Generated code includes PARAMS constant."""

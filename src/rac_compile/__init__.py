@@ -1,5 +1,5 @@
 """
-cosilico-compile: Compile Cosilico DSL to standalone JavaScript and Python.
+rac-compile: Compile RAC DSL to standalone JavaScript and Python.
 
 This module generates JS and Python code from .cos files for use in browsers,
 Node.js, and Python applications without any dependencies.
