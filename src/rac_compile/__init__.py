@@ -19,8 +19,8 @@ from .parser import (
     parse_cos,
     parse_rac,
 )
-from .python_generator import PythonCodeGenerator
 from .python_generator import Parameter as PythonParameter
+from .python_generator import PythonCodeGenerator
 from .python_generator import Variable as PythonVariable
 from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
 

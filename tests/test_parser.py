@@ -9,16 +9,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from src.rac_compile.parser import (
-    parse_cos,
-    parse_rac,
     CosFile,
     RacFile,
-    SourceBlock,
-    VariableBlock,
-    TemporalEntry,
+    parse_cos,
+    parse_rac,
 )
-
 
 # ============================================================
 # Legacy .cos syntax tests (backward compatibility)
@@ -303,7 +300,8 @@ variable eitc {
   label "Earned Income Tax Credit"
 
   formula {
-    let credit_base = credit_pct[n_children] * min(earned_income, earned_income_amount[n_children])
+    let earned_cap = earned_income_amount[n_children]
+    let credit_base = credit_pct[n_children] * min(earned_income, earned_cap)
     return max(0, credit_base - phaseout)
   }
 }

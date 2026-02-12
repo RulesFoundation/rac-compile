@@ -9,14 +9,20 @@ Two modes:
 2. Individual (slow): Build individual situations for each household
 """
 
-import pandas as pd
+from typing import Dict
+
 import numpy as np
-from typing import Dict, List, Optional
+import pandas as pd
 from tqdm import tqdm
 
-from ..calculators import calculate_eitc, calculate_ctc, calculate_actc, calculate_snap_benefit
-from ..calculators.eitc import EITC_PARAMS
+from ..calculators import (
+    calculate_actc,
+    calculate_ctc,
+    calculate_eitc,
+    calculate_snap_benefit,
+)
 from ..calculators.ctc import CTC_PARAMS
+from ..calculators.eitc import EITC_PARAMS
 from ..calculators.snap import SNAP_PARAMS
 
 
@@ -32,7 +38,11 @@ def run_rac(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
         DataFrame with household_id and calculated values
     """
     results = []
-    iterator = tqdm(df.iterrows(), total=len(df), desc="RAC") if show_progress else df.iterrows()
+    iterator = (
+        tqdm(df.iterrows(), total=len(df), desc="RAC")
+        if show_progress
+        else df.iterrows()
+    )
 
     for _, row in iterator:
         # EITC
@@ -62,18 +72,24 @@ def run_rac(df: pd.DataFrame, show_progress: bool = True) -> pd.DataFrame:
             gross_income=row["gross_monthly_income"],
         )
 
-        results.append({
-            "household_id": row["household_id"],
-            "rac_eitc": eitc_result.eitc,
-            "rac_ctc": ctc_result.ctc,
-            "rac_actc": actc_result.actc,
-            "rac_snap": snap_result.benefit,
-        })
+        results.append(
+            {
+                "household_id": row["household_id"],
+                "rac_eitc": eitc_result.eitc,
+                "rac_ctc": ctc_result.ctc,
+                "rac_actc": actc_result.actc,
+                "rac_snap": snap_result.benefit,
+            }
+        )
 
     return pd.DataFrame(results)
 
 
-def run_policyengine(df: pd.DataFrame, year: int = 2025, show_progress: bool = True) -> pd.DataFrame:
+def run_policyengine(
+    df: pd.DataFrame,
+    year: int = 2025,
+    show_progress: bool = True,
+) -> pd.DataFrame:
     """
     Run PolicyEngine-US on CPS household data.
 
@@ -86,7 +102,7 @@ def run_policyengine(df: pd.DataFrame, year: int = 2025, show_progress: bool = T
         DataFrame with household_id and PolicyEngine calculated values
     """
     try:
-        from policyengine_us import Simulation
+        import policyengine_us  # noqa: F401
     except ImportError:
         raise ImportError(
             "policyengine-us required for validation. "
@@ -94,7 +110,11 @@ def run_policyengine(df: pd.DataFrame, year: int = 2025, show_progress: bool = T
         )
 
     results = []
-    iterator = tqdm(df.iterrows(), total=len(df), desc="PolicyEngine") if show_progress else df.iterrows()
+    iterator = (
+        tqdm(df.iterrows(), total=len(df), desc="PolicyEngine")
+        if show_progress
+        else df.iterrows()
+    )
 
     for _, row in iterator:
         try:
@@ -103,14 +123,16 @@ def run_policyengine(df: pd.DataFrame, year: int = 2025, show_progress: bool = T
             results.append(pe_values)
         except Exception as e:
             # Log error but continue with other households
-            results.append({
-                "household_id": row["household_id"],
-                "pe_eitc": np.nan,
-                "pe_ctc": np.nan,
-                "pe_actc": np.nan,
-                "pe_snap": np.nan,
-                "pe_error": str(e),
-            })
+            results.append(
+                {
+                    "household_id": row["household_id"],
+                    "pe_eitc": np.nan,
+                    "pe_ctc": np.nan,
+                    "pe_actc": np.nan,
+                    "pe_snap": np.nan,
+                    "pe_error": str(e),
+                }
+            )
 
     return pd.DataFrame(results)
 
@@ -222,7 +244,7 @@ def run_rac_vectorized(df: pd.DataFrame) -> pd.DataFrame:
 
     Much faster than row-by-row iteration.
     """
-    n = len(df)
+    _n = len(df)  # noqa: F841
 
     # Vectorized EITC
     earned = df["earned_income"].values
@@ -232,8 +254,12 @@ def run_rac_vectorized(df: pd.DataFrame) -> pd.DataFrame:
 
     # Get parameters per household based on n_children
     credit_pct = np.array([EITC_PARAMS["credit_pct"][nc] / 100 for nc in n_children])
-    phaseout_pct = np.array([EITC_PARAMS["phaseout_pct"][nc] / 100 for nc in n_children])
-    earned_amount = np.array([EITC_PARAMS["earned_income_amount"][nc] for nc in n_children])
+    phaseout_pct = np.array(
+        [EITC_PARAMS["phaseout_pct"][nc] / 100 for nc in n_children]
+    )
+    earned_amount = np.array(
+        [EITC_PARAMS["earned_income_amount"][nc] for nc in n_children]
+    )
     phaseout_start = np.where(
         is_joint,
         np.array([EITC_PARAMS["phaseout_joint"][nc] for nc in n_children]),
@@ -277,15 +303,21 @@ def run_rac_vectorized(df: pd.DataFrame) -> pd.DataFrame:
     reduction = net_income * SNAP_PARAMS["benefit_reduction_rate"] / 100
     benefit = np.maximum(0, max_allotment - reduction)
     min_benefit = np.where(hh_size <= 2, SNAP_PARAMS["min_benefit"], 0)
-    snap = np.where(is_eligible, np.round(np.maximum(benefit, min_benefit)), 0).astype(int)
+    snap = np.where(
+        is_eligible,
+        np.round(np.maximum(benefit, min_benefit)),
+        0,
+    ).astype(int)
 
-    return pd.DataFrame({
-        "household_id": df["household_id"],
-        "rac_eitc": eitc,
-        "rac_ctc": ctc,
-        "rac_actc": actc,
-        "rac_snap": snap,
-    })
+    return pd.DataFrame(
+        {
+            "household_id": df["household_id"],
+            "rac_eitc": eitc,
+            "rac_ctc": ctc,
+            "rac_actc": actc,
+            "rac_snap": snap,
+        }
+    )
 
 
 def run_policyengine_microsim(year: int = 2025) -> pd.DataFrame:
@@ -330,13 +362,15 @@ def run_policyengine_microsim(year: int = 2025) -> pd.DataFrame:
     results = []
     for tu_id in unique_tu:
         mask = tax_unit_id == tu_id
-        results.append({
-            "tax_unit_id": int(tu_id),
-            "pe_eitc": float(eitc[mask].iloc[0]),
-            "pe_ctc": float(ctc[mask].iloc[0]),
-            "pe_actc": float(actc[mask].iloc[0]),
-            "pe_snap": float(snap[mask].iloc[0]),
-        })
+        results.append(
+            {
+                "tax_unit_id": int(tu_id),
+                "pe_eitc": float(eitc[mask].iloc[0]),
+                "pe_ctc": float(ctc[mask].iloc[0]),
+                "pe_actc": float(actc[mask].iloc[0]),
+                "pe_snap": float(snap[mask].iloc[0]),
+            }
+        )
 
     return pd.DataFrame(results)
 
@@ -412,18 +446,20 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
 
         is_joint = filing_status.values[idx] == "JOINT"
 
-        tu_records.append({
-            "household_id": int(tu_id),
-            "earned_income": float(earned_income.values[idx]),
-            "agi": float(agi.values[idx]),
-            "n_children": int(n_children.values[idx]),
-            "is_joint": is_joint,
-            "household_size": int(tax_unit_size.values[idx]),
-            "gross_monthly_income": float(agi.values[idx]) / 12,
-            "pe_eitc": float(pe_eitc.values[idx]),
-            "pe_ctc": float(pe_ctc.values[idx]),
-            "pe_actc": float(pe_actc.values[idx]),
-        })
+        tu_records.append(
+            {
+                "household_id": int(tu_id),
+                "earned_income": float(earned_income.values[idx]),
+                "agi": float(agi.values[idx]),
+                "n_children": int(n_children.values[idx]),
+                "is_joint": is_joint,
+                "household_size": int(tax_unit_size.values[idx]),
+                "gross_monthly_income": float(agi.values[idx]) / 12,
+                "pe_eitc": float(pe_eitc.values[idx]),
+                "pe_ctc": float(pe_ctc.values[idx]),
+                "pe_actc": float(pe_actc.values[idx]),
+            }
+        )
 
     tu_df = pd.DataFrame(tu_records)
 
@@ -440,12 +476,14 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
         annual_income = float(spm_unit_net_income.values[idx])
         monthly_income = max(0, annual_income / 12)
 
-        spm_records.append({
-            "spm_unit_id": int(spm_id),
-            "household_size": int(spm_unit_size.values[idx]),
-            "gross_monthly_income": monthly_income,
-            "pe_snap": float(pe_snap.values[idx]),
-        })
+        spm_records.append(
+            {
+                "spm_unit_id": int(spm_id),
+                "household_size": int(spm_unit_size.values[idx]),
+                "gross_monthly_income": monthly_income,
+                "pe_snap": float(pe_snap.values[idx]),
+            }
+        )
 
     spm_df = pd.DataFrame(spm_records)
 
@@ -463,7 +501,11 @@ def run_both_vectorized(year: int = 2025) -> pd.DataFrame:
     reduction = net_income * SNAP_PARAMS["benefit_reduction_rate"] / 100
     benefit = np.maximum(0, max_allotment - reduction)
     min_benefit = np.where(hh_size <= 2, SNAP_PARAMS["min_benefit"], 0)
-    rac_snap = np.where(is_eligible, np.round(np.maximum(benefit, min_benefit)), 0).astype(int)
+    rac_snap = np.where(
+        is_eligible,
+        np.round(np.maximum(benefit, min_benefit)),
+        0,
+    ).astype(int)
 
     spm_df["rac_snap"] = rac_snap
 

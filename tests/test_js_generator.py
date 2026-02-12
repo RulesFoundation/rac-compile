@@ -5,11 +5,10 @@ TDD: Tests written first, implementation follows.
 """
 
 import pytest
+
 from src.rac_compile.js_generator import (
     JSCodeGenerator,
     generate_eitc_calculator,
-    Parameter,
-    Variable,
 )
 
 

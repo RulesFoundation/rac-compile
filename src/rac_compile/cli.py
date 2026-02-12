@@ -11,9 +11,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .js_generator import generate_eitc_calculator, JSCodeGenerator
-from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
+from .js_generator import generate_eitc_calculator
 from .parser import parse_rac
+from .python_generator import generate_eitc_calculator as generate_eitc_calculator_py
 
 
 def main():
@@ -35,7 +35,8 @@ def main():
         help="Input .rac or .cos file",
     )
     compile_parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=Path,
         help="Output file path (default: stdout)",
     )
@@ -46,7 +47,8 @@ def main():
         help="Generate EITC calculator (26 USC 32)",
     )
     eitc_parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=Path,
         help="Output file path (default: stdout)",
     )
@@ -88,7 +90,7 @@ def main():
             print(code)
 
     elif args.command == "eitc":
-        if hasattr(args, 'python') and args.python:
+        if hasattr(args, "python") and args.python:
             code = generate_eitc_calculator_py(tax_year=args.year)
             lang = "Python"
         else:

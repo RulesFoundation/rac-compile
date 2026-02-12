@@ -15,9 +15,8 @@ Examples:
 
 import argparse
 import sys
-from pathlib import Path
 
-from .comparator import validate, validate_full, ComparisonConfig
+from .comparator import ComparisonConfig, validate, validate_full
 
 
 def main():
@@ -29,7 +28,9 @@ def main():
         "--mode",
         choices=["full", "sample"],
         default="full",
-        help="Validation mode: 'full' (vectorized, all CPS) or 'sample' (per-household)",
+        help=(
+            "Validation mode: 'full' (vectorized, all CPS) or 'sample' (per-household)"
+        ),
     )
 
     parser.add_argument(
@@ -122,7 +123,8 @@ def main():
 
         # Exit with error if match rates are too low (only for variables with data)
         valid_rates = [
-            rate for var, rate in results.match_rates.items()
+            rate
+            for var, rate in results.match_rates.items()
             if results.matches[var] + len(results.mismatches[var]) > 0
         ]
         min_match_rate = min(valid_rates) if valid_rates else 100
@@ -138,6 +140,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

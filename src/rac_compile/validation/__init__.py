@@ -8,8 +8,8 @@ This follows the policyengine-taxsim pattern:
 """
 
 from .comparator import Comparator, ComparisonConfig, ComparisonResults
-from .runners import run_rac, run_policyengine
-from .cps_loader import load_cps_data, CPSHousehold
+from .cps_loader import CPSHousehold, load_cps_data
+from .runners import run_policyengine, run_rac
 
 __all__ = [
     "Comparator",

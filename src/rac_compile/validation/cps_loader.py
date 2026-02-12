@@ -6,8 +6,9 @@ Loads enhanced CPS microdata and prepares it for running through calculators.
 
 from dataclasses import dataclass
 from typing import Iterator, Optional
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -140,19 +141,21 @@ def load_cps_from_csv(
     for _, row in df.iterrows():
         # Earned income = wages + self-employment
         earned_income = (
-            row.get("pwages", 0) + row.get("psemp", 0) +
-            row.get("swages", 0) + row.get("ssemp", 0)
+            row.get("pwages", 0)
+            + row.get("psemp", 0)
+            + row.get("swages", 0)
+            + row.get("ssemp", 0)
         )
 
         # AGI approximation (more components could be added)
         agi = (
-            earned_income +
-            row.get("dividends", 0) +
-            row.get("intrec", 0) +
-            row.get("stcg", 0) +
-            row.get("ltcg", 0) +
-            row.get("pensions", 0) +
-            row.get("gssi", 0)  # Social Security
+            earned_income
+            + row.get("dividends", 0)
+            + row.get("intrec", 0)
+            + row.get("stcg", 0)
+            + row.get("ltcg", 0)
+            + row.get("pensions", 0)
+            + row.get("gssi", 0)  # Social Security
         )
 
         # Number of dependents/children
@@ -243,14 +246,58 @@ def iterate_households(df: pd.DataFrame) -> Iterator[CPSHousehold]:
 
 # State FIPS to abbreviation mapping
 FIPS_TO_STATE = {
-    0: "US", 1: "AL", 2: "AK", 4: "AZ", 5: "AR", 6: "CA", 8: "CO", 9: "CT",
-    10: "DE", 11: "DC", 12: "FL", 13: "GA", 15: "HI", 16: "ID", 17: "IL",
-    18: "IN", 19: "IA", 20: "KS", 21: "KY", 22: "LA", 23: "ME", 24: "MD",
-    25: "MA", 26: "MI", 27: "MN", 28: "MS", 29: "MO", 30: "MT", 31: "NE",
-    32: "NV", 33: "NH", 34: "NJ", 35: "NM", 36: "NY", 37: "NC", 38: "ND",
-    39: "OH", 40: "OK", 41: "OR", 42: "PA", 44: "RI", 45: "SC", 46: "SD",
-    47: "TN", 48: "TX", 49: "UT", 50: "VT", 51: "VA", 53: "WA", 54: "WV",
-    55: "WI", 56: "WY",
+    0: "US",
+    1: "AL",
+    2: "AK",
+    4: "AZ",
+    5: "AR",
+    6: "CA",
+    8: "CO",
+    9: "CT",
+    10: "DE",
+    11: "DC",
+    12: "FL",
+    13: "GA",
+    15: "HI",
+    16: "ID",
+    17: "IL",
+    18: "IN",
+    19: "IA",
+    20: "KS",
+    21: "KY",
+    22: "LA",
+    23: "ME",
+    24: "MD",
+    25: "MA",
+    26: "MI",
+    27: "MN",
+    28: "MS",
+    29: "MO",
+    30: "MT",
+    31: "NE",
+    32: "NV",
+    33: "NH",
+    34: "NJ",
+    35: "NM",
+    36: "NY",
+    37: "NC",
+    38: "ND",
+    39: "OH",
+    40: "OK",
+    41: "OR",
+    42: "PA",
+    44: "RI",
+    45: "SC",
+    46: "SD",
+    47: "TN",
+    48: "TX",
+    49: "UT",
+    50: "VT",
+    51: "VA",
+    53: "WA",
+    54: "WV",
+    55: "WI",
+    56: "WY",
 }
 
 

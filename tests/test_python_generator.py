@@ -4,8 +4,6 @@ Tests for Python code generation from RAC DSL.
 Following TDD: write tests first, then implement.
 """
 
-import pytest
-
 
 class TestPythonCodeGenerator:
     """Test PythonCodeGenerator initialization and setup."""
@@ -213,11 +211,18 @@ class TestPythonExecution:
         exec(code, namespace)
 
         # Test zero income
-        result = namespace["calculate"](earned_income=0, agi=0, n_children=0, is_joint=False)
+        result = namespace["calculate"](
+            earned_income=0, agi=0, n_children=0, is_joint=False
+        )
         assert result["eitc"] == 0
 
         # Test typical case
-        result = namespace["calculate"](earned_income=15000, agi=15000, n_children=1, is_joint=False)
+        result = namespace["calculate"](
+            earned_income=15000,
+            agi=15000,
+            n_children=1,
+            is_joint=False,
+        )
         assert result["eitc"] > 0
         assert "citations" in result
         assert len(result["citations"]) > 0
@@ -228,8 +233,8 @@ class TestPythonVsJS:
 
     def test_simple_calculation_matches_js(self):
         """Python and JS generators produce equivalent results."""
-        from src.rac_compile.python_generator import PythonCodeGenerator
         from src.rac_compile.js_generator import JSCodeGenerator
+        from src.rac_compile.python_generator import PythonCodeGenerator
 
         # Python version
         py_gen = PythonCodeGenerator()
@@ -243,7 +248,7 @@ class TestPythonVsJS:
         js_gen.add_input("x", 0, "number")
         js_gen.add_parameter("multiplier", {0: 2.5}, "Test")
         js_gen.add_variable("y", ["x"], "x * PARAMS.multiplier[0]")
-        js_code = js_gen.generate()
+        js_gen.generate()
 
         # Execute Python
         py_namespace = {}

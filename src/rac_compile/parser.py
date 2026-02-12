@@ -100,11 +100,21 @@ class RacFile:
         return gen
 
     _COMMON_INPUTS = [
-        "income", "earned_income", "agi", "wages",
-        "gross_income", "net_income", "tax_liability",
-        "n_children", "num_children", "n_qualifying_children",
-        "household_size", "family_size",
-        "is_joint", "is_married", "filing_status",
+        "income",
+        "earned_income",
+        "agi",
+        "wages",
+        "gross_income",
+        "net_income",
+        "tax_liability",
+        "n_children",
+        "num_children",
+        "n_qualifying_children",
+        "household_size",
+        "family_size",
+        "is_joint",
+        "is_married",
+        "filing_status",
     ]
 
     def _extract_inputs(self, formula: str) -> list[str]:
@@ -158,14 +168,14 @@ def parse_rac(content: str) -> RacFile:
             text_lines = []
             rest = stripped[3:]
             if '"""' in rest:
-                result.statute_text = rest[:rest.index('"""')]
+                result.statute_text = rest[: rest.index('"""')]
                 i += 1
                 continue
             text_lines.append(rest)
             i += 1
             while i < len(lines):
                 if '"""' in lines[i]:
-                    before_close = lines[i][:lines[i].index('"""')]
+                    before_close = lines[i][: lines[i].index('"""')]
                     text_lines.append(before_close)
                     break
                 text_lines.append(lines[i])
@@ -261,10 +271,12 @@ def _parse_unified_definition(
 
         scalar_match = _DATE_SCALAR_PATTERN.match(stripped)
         if scalar_match:
-            temporal.append(TemporalEntry(
-                from_date=scalar_match.group(1),
-                value=float(scalar_match.group(2)),
-            ))
+            temporal.append(
+                TemporalEntry(
+                    from_date=scalar_match.group(1),
+                    value=float(scalar_match.group(2)),
+                )
+            )
             i += 1
             continue
 
@@ -421,7 +433,7 @@ def _parse_variable_block(name: str, content: str) -> VariableBlock:
     if formula_match:
         var.formula = textwrap.dedent(formula_match.group(1)).strip()
 
-    pre_formula = content[:formula_match.start()] if formula_match else content
+    pre_formula = content[: formula_match.start()] if formula_match else content
 
     for line in pre_formula.split("\n"):
         line = line.strip()
