@@ -59,7 +59,7 @@ parameter phaseout_joint {
   }
 }
 
-variable eitc {
+eitc {
   entity TaxUnit
   period Year
   dtype Money

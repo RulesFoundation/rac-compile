@@ -10,7 +10,7 @@ parameters {
   rate: example/tax/rate
 }
 
-variable tax {
+tax {
   entity Person
   period Year
   dtype Money

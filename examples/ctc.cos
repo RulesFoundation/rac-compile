@@ -57,7 +57,7 @@ parameter phaseout_rate {
   }
 }
 
-variable ctc {
+ctc {
   entity TaxUnit
   period Year
   dtype Money
@@ -80,7 +80,7 @@ variable ctc {
   }
 }
 
-variable actc {
+actc {
   entity TaxUnit
   period Year
   dtype Money

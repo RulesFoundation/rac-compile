@@ -80,7 +80,7 @@ parameter net_income_limit {
   }
 }
 
-variable snap_eligible {
+snap_eligible {
   entity Household
   period Month
   dtype Boolean
@@ -94,7 +94,7 @@ variable snap_eligible {
   }
 }
 
-variable snap_benefit {
+snap_benefit {
   entity Household
   period Month
   dtype Money
